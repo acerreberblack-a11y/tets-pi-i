@@ -140,6 +140,41 @@ namespace IPWhiteListManager.Data
             return systems;
         }
 
+        public SystemInfo GetSystemById(int systemId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT * FROM Systems WHERE Id = @Id LIMIT 1";
+                command.Parameters.Add(new SQLiteParameter("@Id", systemId));
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new SystemInfo
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            SystemName = reader["SystemName"].ToString(),
+                            Description = reader["Description"] == DBNull.Value ? null : reader["Description"].ToString(),
+                            IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
+                            CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
+                            CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
+                            CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
+                        };
+                    }
+                }
+            }
+
+            return null;
+        }
+
         public SystemInfo FindSystemByName(string systemName)
         {
             using (var connection = new SQLiteConnection(_connectionString))
@@ -242,6 +277,41 @@ namespace IPWhiteListManager.Data
                 }
 
                 return ipId;
+            }
+        }
+
+        public void UpdateIPAddress(IPAddressInfo ipAddress)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE IPAddresses
+                    SET SystemId = @SystemId,
+                        IPAddress = @IPAddress,
+                        Environment = @Environment,
+                        IsRegisteredInNamen = @IsRegisteredInNamen,
+                        NamenRequestNumber = @NamenRequestNumber
+                    WHERE Id = @Id";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                command.Parameters.Add(new SQLiteParameter("@IPAddress", ipAddress.IPAddress));
+                command.Parameters.Add(new SQLiteParameter("@Environment", ipAddress.Environment.ToString()));
+                command.Parameters.Add(new SQLiteParameter("@IsRegisteredInNamen", ipAddress.IsRegisteredInNamen));
+                command.Parameters.Add(new SQLiteParameter("@NamenRequestNumber", ipAddress.NamenRequestNumber ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@Id", ipAddress.Id));
+
+                command.ExecuteNonQuery();
+
+                if (ipAddress.Environment == EnvironmentType.Both)
+                {
+                    var updateSystem = connection.CreateCommand();
+                    updateSystem.CommandText = "UPDATE Systems SET IsTestProductionCombined = 1 WHERE Id = @SystemId";
+                    updateSystem.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                    updateSystem.ExecuteNonQuery();
+                }
             }
         }
 
@@ -380,6 +450,41 @@ namespace IPWhiteListManager.Data
             }
 
             return ipAddresses;
+        }
+
+        public void UpdateSystem(SystemInfo system)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE Systems
+                    SET SystemName = @SystemName,
+                        Description = @Description,
+                        IsTestProductionCombined = @IsTestProductionCombined,
+                        CuratorName = @CuratorName,
+                        CuratorEmail = @CuratorEmail,
+                        OwnerName = @OwnerName,
+                        OwnerEmail = @OwnerEmail,
+                        TechnicalSpecialistName = @TechnicalSpecialistName,
+                        TechnicalSpecialistEmail = @TechnicalSpecialistEmail
+                    WHERE Id = @Id";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemName", system.SystemName));
+                command.Parameters.Add(new SQLiteParameter("@Description", system.Description ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@IsTestProductionCombined", system.IsTestProductionCombined));
+                command.Parameters.Add(new SQLiteParameter("@CuratorName", system.CuratorName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@CuratorEmail", system.CuratorEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerName", system.OwnerName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerEmail", system.OwnerEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistName", system.TechnicalSpecialistName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistEmail", system.TechnicalSpecialistEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@Id", system.Id));
+
+                command.ExecuteNonQuery();
+            }
         }
     }
 }

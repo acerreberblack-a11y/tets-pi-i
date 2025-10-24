@@ -9,24 +9,43 @@ namespace IPWhiteListManager.Forms
     public partial class AddIPForm : Form
     {
         private readonly DatabaseManager _dbManager;
+        private readonly bool _isEditMode;
+        private readonly IPAddressInfo _ipToEdit;
+        private readonly SystemInfo _systemForEdit;
 
         private bool _isUpdatingCombinedState;
 
         public AddIPForm(DatabaseManager dbManager)
+            : this(dbManager, null, null)
+        {
+        }
+
+        public AddIPForm(DatabaseManager dbManager, IPAddressInfo ipToEdit, SystemInfo systemForEdit)
         {
             _dbManager = dbManager;
+            _ipToEdit = ipToEdit;
+            _systemForEdit = systemForEdit;
+            _isEditMode = ipToEdit != null;
+
             InitializeComponent();
 
             // Подписка на события
-            this.btnSave.Click += BtnSave_Click;
-            this.btnCancel.Click += BtnCancel_Click;
-            this.txtIPAddress.TextChanged += TxtIPAddress_TextChanged;
-            this.txtRequestNumber.TextChanged += TxtRequestNumber_TextChanged;
-            this.chkCombined.CheckedChanged += ChkCombined_CheckedChanged;
-            this.chkProduction.CheckedChanged += EnvironmentCheckBoxChanged;
-            this.chkTest.CheckedChanged += EnvironmentCheckBoxChanged;
+            btnSave.Click += BtnSave_Click;
+            btnCancel.Click += BtnCancel_Click;
+            txtIPAddress.TextChanged += TxtIPAddress_TextChanged;
+            txtRequestNumber.TextChanged += TxtRequestNumber_TextChanged;
+            chkCombined.CheckedChanged += ChkCombined_CheckedChanged;
+            chkProduction.CheckedChanged += EnvironmentCheckBoxChanged;
+            chkTest.CheckedChanged += EnvironmentCheckBoxChanged;
 
             LoadSystems();
+
+            if (_isEditMode)
+            {
+                Text = "Редактирование IP";
+                btnSave.Text = "Сохранить";
+                PopulateFromExisting();
+            }
         }
 
         private void LoadSystems()
@@ -47,7 +66,6 @@ namespace IPWhiteListManager.Forms
 
         private void TxtRequestNumber_TextChanged(object sender, EventArgs e)
         {
-            // Если введен номер заявки, отключаем автоматическую регистрацию
             if (!string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
             {
                 chkRegisterNamen.Checked = false;
@@ -55,7 +73,7 @@ namespace IPWhiteListManager.Forms
             }
             else
             {
-                chkRegisterNamen.Enabled = true;
+                chkRegisterNamen.Enabled = !_isEditMode || (_ipToEdit != null && !_ipToEdit.IsRegisteredInNamen);
             }
         }
 
@@ -65,16 +83,18 @@ namespace IPWhiteListManager.Forms
             if (string.IsNullOrEmpty(ipAddress))
                 return;
 
-            var existingIPs = _dbManager.FindIPAddresses(ipAddress);
+            var existingIPs = _dbManager
+                .FindIPAddresses(ipAddress)
+                .Where(ip => !_isEditMode || ip.Id != _ipToEdit.Id)
+                .ToList();
+
             if (existingIPs.Any())
             {
                 var firstIP = existingIPs.First();
 
-                // Устанавливаем систему
                 cmbSystem.Text = firstIP.SystemName;
                 cmbSystem.Enabled = false;
 
-                // Блокируем чекбоксы в зависимости от существующего окружения
                 switch (firstIP.Environment)
                 {
                     case EnvironmentType.Production:
@@ -110,7 +130,6 @@ namespace IPWhiteListManager.Forms
             }
             else
             {
-                // Разблокируем все поля если IP не найден
                 cmbSystem.Enabled = true;
                 chkProduction.Enabled = true;
                 chkTest.Enabled = true;
@@ -121,7 +140,6 @@ namespace IPWhiteListManager.Forms
 
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            // Проверка введенных данных
             if (string.IsNullOrEmpty(cmbSystem.Text))
             {
                 MessageBox.Show("Введите или выберите систему", "Ошибка",
@@ -143,10 +161,7 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            // Определение окружения
             var environment = GetEnvironmentType();
-
-            // Получение или создание системы
             var systemId = GetOrCreateSystem(cmbSystem.Text.Trim());
             if (systemId == -1)
             {
@@ -155,44 +170,60 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            // Создание и сохранение IP-адреса
             var ipInfo = new IPAddressInfo
             {
+                Id = _ipToEdit?.Id ?? 0,
                 SystemId = systemId,
                 IPAddress = txtIPAddress.Text.Trim(),
                 Environment = environment,
-                IsRegisteredInNamen = !string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) || chkRegisterNamen.Checked,
+                IsRegisteredInNamen = CalculateRegistrationState(),
                 NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) ? null : txtRequestNumber.Text.Trim()
             };
 
             try
             {
-                var ipId = _dbManager.AddIPAddress(ipInfo);
-
-                // Регистрация в namen если отмечено и нет ручного номера заявки
-                if (chkRegisterNamen.Checked && string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
+                if (_isEditMode)
                 {
-                    RegisterInNamen(ipId, ipInfo.IPAddress, environment.ToString());
+                    _dbManager.UpdateIPAddress(ipInfo);
+
+                    if (ShouldRegisterInNamen())
+                    {
+                        RegisterInNamen(ipInfo.Id, ipInfo.IPAddress, environment.ToString());
+                    }
+                    else
+                    {
+                        MessageBox.Show("IP-адрес успешно обновлен", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        DialogResult = DialogResult.OK;
+                        Close();
+                    }
                 }
                 else
                 {
-                    MessageBox.Show("IP-адрес успешно добавлен", "Успех",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                }
+                    var ipId = _dbManager.AddIPAddress(ipInfo);
 
-                DialogResult = DialogResult.OK;
-                Close();
+                    if (chkRegisterNamen.Checked && string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
+                    {
+                        RegisterInNamen(ipId, ipInfo.IPAddress, environment.ToString());
+                    }
+                    else
+                    {
+                        MessageBox.Show("IP-адрес успешно добавлен", "Успех",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                        DialogResult = DialogResult.OK;
+                        Close();
+                    }
+                }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Ошибка при добавлении IP-адреса: {ex.Message}", "Ошибка",
+                MessageBox.Show($"Ошибка при сохранении IP-адреса: {ex.Message}", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
             }
         }
 
         private int GetOrCreateSystem(string systemName)
         {
-            // Поиск существующей системы
             var systems = _dbManager.GetAllSystems();
             var existingSystem = systems.FirstOrDefault(s => s.SystemName.Equals(systemName, StringComparison.OrdinalIgnoreCase));
 
@@ -303,6 +334,8 @@ namespace IPWhiteListManager.Forms
                     _dbManager.UpdateNamenRegistration(ipAddressId, true, result.RequestNumber);
                     MessageBox.Show($"IP {ipAddress} успешно зарегистрирован в namen\nНомер заявки: {result.RequestNumber}", "Успех",
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
                 }
                 else
                 {
@@ -321,6 +354,84 @@ namespace IPWhiteListManager.Forms
         {
             DialogResult = DialogResult.Cancel;
             Close();
+        }
+
+        private void PopulateFromExisting()
+        {
+            if (_systemForEdit != null)
+            {
+                cmbSystem.SelectedItem = _systemForEdit.SystemName;
+            }
+            else
+            {
+                cmbSystem.SelectedItem = _ipToEdit.SystemName;
+                if (cmbSystem.SelectedItem == null)
+                {
+                    cmbSystem.Text = _ipToEdit.SystemName;
+                }
+            }
+
+            txtIPAddress.Text = _ipToEdit.IPAddress;
+            txtRequestNumber.Text = _ipToEdit.NamenRequestNumber;
+
+            chkRegisterNamen.Checked = false;
+            chkRegisterNamen.Enabled = !_ipToEdit.IsRegisteredInNamen && string.IsNullOrEmpty(_ipToEdit.NamenRequestNumber);
+
+            PopulateEnvironmentFromEdit();
+        }
+
+        private void PopulateEnvironmentFromEdit()
+        {
+            if (!_isEditMode || _ipToEdit == null)
+            {
+                return;
+            }
+
+            switch (_ipToEdit.Environment)
+            {
+                case EnvironmentType.Production:
+                    chkProduction.Checked = true;
+                    chkTest.Checked = false;
+                    SetCombinedState(false, true);
+                    break;
+                case EnvironmentType.Test:
+                    chkProduction.Checked = false;
+                    chkTest.Checked = true;
+                    SetCombinedState(false, true);
+                    break;
+                case EnvironmentType.Both:
+                    chkProduction.Checked = true;
+                    chkTest.Checked = true;
+                    SetCombinedState(true, true);
+                    break;
+            }
+        }
+
+        private bool CalculateRegistrationState()
+        {
+            if (!string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
+            {
+                return true;
+            }
+
+            if (_isEditMode && _ipToEdit.IsRegisteredInNamen)
+            {
+                return true;
+            }
+
+            return chkRegisterNamen.Checked;
+        }
+
+        private bool ShouldRegisterInNamen()
+        {
+            if (!_isEditMode || _ipToEdit == null)
+            {
+                return false;
+            }
+
+            return chkRegisterNamen.Checked &&
+                   string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) &&
+                   !_ipToEdit.IsRegisteredInNamen;
         }
     }
 }

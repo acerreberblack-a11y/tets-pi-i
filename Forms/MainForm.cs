@@ -32,11 +32,16 @@ namespace IPWhiteListManager.Forms
             this.btnAddIP.Click += BtnAddIP_Click;
             this.btnAddSystem.Click += BtnAddSystem_Click;
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
+            this.btnEditIP.Click += BtnEditIP_Click;
+            this.btnEditSystem.Click += BtnEditSystem_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
             this.cmbSystemFilter.SelectedIndexChanged += FilterControlChanged;
             this.cmbEnvironmentFilter.SelectedIndexChanged += FilterControlChanged;
+
+            UpdateContactInfo(null);
+            btnEditIP.Enabled = false;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -183,7 +188,9 @@ namespace IPWhiteListManager.Forms
                 lblSelectedItem.Text = "Выберите запись в таблице для просмотра деталей";
                 txtTechInfo.Text = "";
                 btnRegisterNamen.Enabled = false;
+                btnEditIP.Enabled = false;
                 _selectedIP = null;
+                UpdateContactInfo(null);
                 return;
             }
 
@@ -191,6 +198,8 @@ namespace IPWhiteListManager.Forms
             var system = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
 
             lblSelectedItem.Text = $"{_selectedIP.SystemName} ({_selectedIP.IPAddress}) - {_selectedIP.Environment}";
+            btnEditIP.Enabled = true;
+            UpdateContactInfo(system);
 
             var techInfo = new List<string>();
 
@@ -201,18 +210,6 @@ namespace IPWhiteListManager.Forms
 
                 if (!string.IsNullOrEmpty(system.CuratorEmail))
                     techInfo.Add($"Email куратора: {system.CuratorEmail}");
-
-                if (!string.IsNullOrEmpty(system.OwnerName))
-                    techInfo.Add($"Владелец системы: {system.OwnerName}");
-
-                if (!string.IsNullOrEmpty(system.OwnerEmail))
-                    techInfo.Add($"Email владельца: {system.OwnerEmail}");
-
-                if (!string.IsNullOrEmpty(system.TechnicalSpecialistName))
-                    techInfo.Add($"Технический специалист: {system.TechnicalSpecialistName}");
-
-                if (!string.IsNullOrEmpty(system.TechnicalSpecialistEmail))
-                    techInfo.Add($"Email специалиста: {system.TechnicalSpecialistEmail}");
 
                 if (!string.IsNullOrEmpty(system.Description))
                     techInfo.Add($"Описание: {system.Description}");
@@ -318,6 +315,122 @@ namespace IPWhiteListManager.Forms
             {
                 ApplyFilters();
                 e.Handled = true;
+            }
+        }
+
+        private void BtnEditIP_Click(object sender, EventArgs e)
+        {
+            if (_selectedIP == null)
+            {
+                MessageBox.Show("Выберите IP-адрес для редактирования", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var system = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
+            var ipId = _selectedIP.Id;
+
+            using (var editForm = new AddIPForm(_dbManager, _selectedIP, system))
+            {
+                if (editForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    LoadData();
+                    SelectIpRow(ipId);
+                }
+            }
+        }
+
+        private void BtnEditSystem_Click(object sender, EventArgs e)
+        {
+            SystemInfo systemToEdit = null;
+
+            if (_selectedIP != null)
+            {
+                systemToEdit = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
+            }
+
+            if (systemToEdit == null && cmbSystemFilter.SelectedIndex > 0)
+            {
+                var selectedName = cmbSystemFilter.SelectedItem.ToString();
+                systemToEdit = _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            if (systemToEdit == null)
+            {
+                MessageBox.Show("Выберите ИС в таблице или фильтре", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var selectedIpId = _selectedIP?.Id;
+
+            using (var editForm = new AddSystemForm(_dbManager, systemToEdit))
+            {
+                if (editForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    var updatedSystem = editForm.CreatedSystem ?? _dbManager.GetSystemById(systemToEdit.Id) ?? systemToEdit;
+
+                    LoadData();
+                    SelectSystemFilter(updatedSystem.SystemName);
+
+                    if (selectedIpId.HasValue)
+                    {
+                        SelectIpRow(selectedIpId.Value);
+                    }
+                }
+            }
+        }
+
+        private void UpdateContactInfo(SystemInfo system)
+        {
+            lblOwnerNameValue.Text = string.IsNullOrWhiteSpace(system?.OwnerName) ? "-" : system.OwnerName;
+            lblOwnerEmailValue.Text = string.IsNullOrWhiteSpace(system?.OwnerEmail) ? "-" : system.OwnerEmail;
+            lblTechNameValue.Text = string.IsNullOrWhiteSpace(system?.TechnicalSpecialistName) ? "-" : system.TechnicalSpecialistName;
+            lblTechEmailValue.Text = string.IsNullOrWhiteSpace(system?.TechnicalSpecialistEmail) ? "-" : system.TechnicalSpecialistEmail;
+        }
+
+        private void SelectIpRow(int ipId)
+        {
+            if (dgvIPAddresses.Rows.Count == 0)
+            {
+                return;
+            }
+
+            dgvIPAddresses.ClearSelection();
+
+            foreach (DataGridViewRow row in dgvIPAddresses.Rows)
+            {
+                if (row.DataBoundItem is IPAddressInfo ip && ip.Id == ipId)
+                {
+                    row.Selected = true;
+                    if (row.Cells.Count > 0)
+                    {
+                        dgvIPAddresses.CurrentCell = row.Cells[0];
+                    }
+
+                    if (row.Index >= 0 && row.Index < dgvIPAddresses.RowCount)
+                    {
+                        dgvIPAddresses.FirstDisplayedScrollingRowIndex = row.Index;
+                    }
+                    break;
+                }
+            }
+        }
+
+        private void SelectSystemFilter(string systemName)
+        {
+            if (string.IsNullOrWhiteSpace(systemName))
+            {
+                return;
+            }
+
+            for (int i = 0; i < cmbSystemFilter.Items.Count; i++)
+            {
+                if (cmbSystemFilter.Items[i].ToString().Equals(systemName, StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbSystemFilter.SelectedIndex = i;
+                    return;
+                }
             }
         }
     }
