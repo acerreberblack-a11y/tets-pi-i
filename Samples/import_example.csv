@@ -1,0 +1,3 @@
+"SystemName";"Environment";"IPAddress";"IsRegisteredInNamen";"NamenRequestNumber";"RegistrationDate";"Description";"CuratorName";"CuratorEmail";"OwnerName";"OwnerEmail";"TechnicalSpecialistName";"TechnicalSpecialistEmail"
+"Billing Platform";"Production";"10.10.10.15";"true";"REQ-2024-001";"2024-05-14 09:30:00";"Платежный шлюз для внешних клиентов";"Иванов Иван";"ivanov@example.com";"Петров Пётр";"petrov@example.com";"Сидоров Сидор";"sidorov@example.com"
+"Analytics Hub";"Test";"192.168.5.21";"false";;"2024-04-02";"Тестовый стенд аналитики";"Смирнова Анна";"asmirnova@example.com";"Кузнецов Олег";"okuznetsov@example.com";"Лебедев Дмитрий";"dlebedev@example.com"

@@ -28,6 +28,7 @@ namespace IPWhiteListManager.Forms
             this.txtTechInfo = new System.Windows.Forms.TextBox();
             this.lblSelectedItem = new System.Windows.Forms.Label();
             this.panelFilters = new System.Windows.Forms.Panel();
+            this.btnImportCsv = new System.Windows.Forms.Button();
             this.btnExportCsv = new System.Windows.Forms.Button();
             this.lblEnvironment = new System.Windows.Forms.Label();
             this.lblSystem = new System.Windows.Forms.Label();
@@ -64,7 +65,7 @@ namespace IPWhiteListManager.Forms
             this.dgvIPAddresses.ReadOnly = true;
             this.dgvIPAddresses.RowHeadersVisible = false;
             this.dgvIPAddresses.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            this.dgvIPAddresses.Size = new System.Drawing.Size(1000, 410);
+            this.dgvIPAddresses.Size = new System.Drawing.Size(1100, 410);
             this.dgvIPAddresses.TabIndex = 0;
             // 
             // txtFilter
@@ -96,7 +97,7 @@ namespace IPWhiteListManager.Forms
             // 
             this.btnSearch.BackColor = System.Drawing.Color.SteelBlue;
             this.btnSearch.ForeColor = System.Drawing.Color.White;
-            this.btnSearch.Location = new System.Drawing.Point(727, 9);
+            this.btnSearch.Location = new System.Drawing.Point(807, 9);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(80, 25);
             this.btnSearch.TabIndex = 4;
@@ -105,16 +106,16 @@ namespace IPWhiteListManager.Forms
             //
             // btnAddIP
             //
-            this.btnAddIP.Location = new System.Drawing.Point(917, 9);
+            this.btnAddIP.Location = new System.Drawing.Point(1003, 9);
             this.btnAddIP.Name = "btnAddIP";
-            this.btnAddIP.Size = new System.Drawing.Size(80, 25);
+            this.btnAddIP.Size = new System.Drawing.Size(90, 25);
             this.btnAddIP.TabIndex = 5;
             this.btnAddIP.Text = "Добавить IP";
             this.btnAddIP.UseVisualStyleBackColor = true;
             //
             // btnAddSystem
             //
-            this.btnAddSystem.Location = new System.Drawing.Point(817, 9);
+            this.btnAddSystem.Location = new System.Drawing.Point(897, 9);
             this.btnAddSystem.Name = "btnAddSystem";
             this.btnAddSystem.Size = new System.Drawing.Size(100, 25);
             this.btnAddSystem.TabIndex = 6;
@@ -159,6 +160,7 @@ namespace IPWhiteListManager.Forms
             // 
             this.panelFilters.BackColor = System.Drawing.Color.Lavender;
             this.panelFilters.Controls.Add(this.btnExportCsv);
+            this.panelFilters.Controls.Add(this.btnImportCsv);
             this.panelFilters.Controls.Add(this.lblEnvironment);
             this.panelFilters.Controls.Add(this.lblSystem);
             this.panelFilters.Controls.Add(this.lblFilter);
@@ -172,8 +174,17 @@ namespace IPWhiteListManager.Forms
             this.panelFilters.Location = new System.Drawing.Point(0, 0);
             this.panelFilters.Name = "panelFilters";
             this.panelFilters.Padding = new System.Windows.Forms.Padding(10);
-            this.panelFilters.Size = new System.Drawing.Size(1000, 60);
+            this.panelFilters.Size = new System.Drawing.Size(1100, 60);
             this.panelFilters.TabIndex = 9;
+            //
+            // btnImportCsv
+            //
+            this.btnImportCsv.Location = new System.Drawing.Point(717, 9);
+            this.btnImportCsv.Name = "btnImportCsv";
+            this.btnImportCsv.Size = new System.Drawing.Size(90, 25);
+            this.btnImportCsv.TabIndex = 10;
+            this.btnImportCsv.Text = "Импорт CSV";
+            this.btnImportCsv.UseVisualStyleBackColor = true;
             //
             // btnExportCsv
             //
@@ -226,7 +237,7 @@ namespace IPWhiteListManager.Forms
             this.panelTechInfo.Location = new System.Drawing.Point(0, 470);
             this.panelTechInfo.Name = "panelTechInfo";
             this.panelTechInfo.Padding = new System.Windows.Forms.Padding(10);
-            this.panelTechInfo.Size = new System.Drawing.Size(1000, 180);
+            this.panelTechInfo.Size = new System.Drawing.Size(1100, 180);
             this.panelTechInfo.TabIndex = 10;
             // 
             // btnDeleteSystem
@@ -364,7 +375,7 @@ namespace IPWhiteListManager.Forms
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(1000, 650);
+            this.ClientSize = new System.Drawing.Size(1100, 650);
             this.Controls.Add(this.dgvIPAddresses);
             this.Controls.Add(this.panelTechInfo);
             this.Controls.Add(this.panelFilters);
@@ -413,5 +424,6 @@ namespace IPWhiteListManager.Forms
         private System.Windows.Forms.Button btnDeleteSystem;
         private System.Windows.Forms.Button btnDeleteIP;
         private System.Windows.Forms.Button btnExportCsv;
+        private System.Windows.Forms.Button btnImportCsv;
     }
 }

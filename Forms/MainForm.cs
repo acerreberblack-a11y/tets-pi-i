@@ -1,6 +1,7 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Text;
@@ -8,6 +9,7 @@ using System.Windows.Forms;
 using IPWhiteListManager.Data;
 using IPWhiteListManager.Models;
 using IPWhiteListManager.Services;
+using Microsoft.VisualBasic.FileIO;
 
 namespace IPWhiteListManager.Forms
 {
@@ -39,6 +41,7 @@ namespace IPWhiteListManager.Forms
             this.btnDeleteIP.Click += BtnDeleteIP_Click;
             this.btnDeleteSystem.Click += BtnDeleteSystem_Click;
             this.btnExportCsv.Click += BtnExportCsv_Click;
+            this.btnImportCsv.Click += BtnImportCsv_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
@@ -665,6 +668,343 @@ namespace IPWhiteListManager.Forms
         {
             var sanitized = (value ?? string.Empty).Replace("\"", "\"\"");
             return $"\"{sanitized}\"";
+        }
+
+        private void BtnImportCsv_Click(object sender, EventArgs e)
+        {
+            using (var dialog = new OpenFileDialog())
+            {
+                dialog.Filter = "CSV файлы (*.csv)|*.csv|Все файлы (*.*)|*.*";
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    try
+                    {
+                        var summary = ImportFromCsv(dialog.FileName);
+                        LoadData();
+
+                        var message = new StringBuilder();
+                        message.AppendLine("Импорт завершен.");
+                        message.AppendLine($"Добавлено ИС: {summary.SystemsCreated}, обновлено ИС: {summary.SystemsUpdated}");
+                        message.AppendLine($"Добавлено IP: {summary.IPsCreated}, обновлено IP: {summary.IPsUpdated}");
+
+                        if (summary.SkippedRows > 0)
+                        {
+                            message.AppendLine($"Пропущено строк: {summary.SkippedRows}");
+                        }
+
+                        if (summary.Errors.Count > 0)
+                        {
+                            message.AppendLine();
+                            message.AppendLine("Ошибки:");
+                            foreach (var error in summary.Errors.Take(5))
+                            {
+                                message.AppendLine(" - " + error);
+                            }
+
+                            if (summary.Errors.Count > 5)
+                            {
+                                message.AppendLine($"... и ещё {summary.Errors.Count - 5} строк(и).");
+                            }
+                        }
+
+                        MessageBox.Show(message.ToString(), "Импорт CSV", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Ошибка при импорте: {ex.Message}", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private ImportSummary ImportFromCsv(string filePath)
+        {
+            var summary = new ImportSummary();
+
+            using (var parser = new TextFieldParser(filePath, Encoding.UTF8))
+            {
+                parser.TextFieldType = FieldType.Delimited;
+                parser.SetDelimiters(";");
+                parser.HasFieldsEnclosedInQuotes = true;
+
+                if (parser.EndOfData)
+                {
+                    return summary;
+                }
+
+                var rawHeaders = parser.ReadFields();
+                if (rawHeaders == null)
+                {
+                    return summary;
+                }
+
+                var headers = new string[rawHeaders.Length];
+                for (var i = 0; i < rawHeaders.Length; i++)
+                {
+                    var value = rawHeaders[i] ?? string.Empty;
+                    headers[i] = value.Trim().Trim((char)0xFEFF);
+                }
+
+                var headerMap = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+                for (var i = 0; i < headers.Length; i++)
+                {
+                    if (!string.IsNullOrWhiteSpace(headers[i]) && !headerMap.ContainsKey(headers[i]))
+                    {
+                        headerMap.Add(headers[i], i);
+                    }
+                }
+
+                var requiredColumns = new[] { "SystemName", "Environment", "IPAddress" };
+                foreach (var column in requiredColumns)
+                {
+                    if (!headerMap.ContainsKey(column))
+                    {
+                        throw new InvalidOperationException($"В файле отсутствует обязательный столбец '{column}'.");
+                    }
+                }
+
+                var lineNumber = 1; // header already read
+                while (!parser.EndOfData)
+                {
+                    string[] fields;
+                    try
+                    {
+                        fields = parser.ReadFields();
+                    }
+                    catch (MalformedLineException ex)
+                    {
+                        summary.SkippedRows++;
+                        summary.Errors.Add($"Строка {lineNumber + 1}: {ex.Message}");
+                        continue;
+                    }
+
+                    lineNumber++;
+
+                    if (fields == null || fields.Length == 0)
+                    {
+                        continue;
+                    }
+
+                    try
+                    {
+                        ProcessImportRow(fields, headerMap, summary);
+                    }
+                    catch (Exception ex)
+                    {
+                        summary.SkippedRows++;
+                        summary.Errors.Add($"Строка {lineNumber}: {ex.Message}");
+                    }
+                }
+            }
+
+            return summary;
+        }
+
+        private void ProcessImportRow(string[] fields, Dictionary<string, int> headerMap, ImportSummary summary)
+        {
+            var systemName = GetFieldValue(headerMap, fields, "SystemName");
+            var environmentText = GetFieldValue(headerMap, fields, "Environment");
+            var ipAddress = GetFieldValue(headerMap, fields, "IPAddress");
+
+            if (string.IsNullOrWhiteSpace(systemName) || string.IsNullOrWhiteSpace(environmentText) || string.IsNullOrWhiteSpace(ipAddress))
+            {
+                throw new InvalidOperationException("Не заполнены обязательные поля SystemName, Environment или IPAddress.");
+            }
+
+            if (!Enum.TryParse(environmentText, true, out EnvironmentType environment))
+            {
+                throw new InvalidOperationException($"Неизвестное значение контура: '{environmentText}'.");
+            }
+
+            var ownerName = GetFieldValue(headerMap, fields, "OwnerName");
+            var ownerEmail = GetFieldValue(headerMap, fields, "OwnerEmail");
+            var techName = GetFieldValue(headerMap, fields, "TechnicalSpecialistName");
+            var techEmail = GetFieldValue(headerMap, fields, "TechnicalSpecialistEmail");
+            var curatorName = GetFieldValue(headerMap, fields, "CuratorName");
+            var curatorEmail = GetFieldValue(headerMap, fields, "CuratorEmail");
+            var description = GetFieldValue(headerMap, fields, "Description");
+            var isRegisteredText = GetFieldValue(headerMap, fields, "IsRegisteredInNamen");
+            var requestNumber = GetFieldValue(headerMap, fields, "NamenRequestNumber");
+            var registrationDateText = GetFieldValue(headerMap, fields, "RegistrationDate");
+
+            var isRegistered = ParseBoolean(isRegisteredText);
+            var registrationDate = ParseDateTime(registrationDateText);
+
+            var system = _dbManager.FindSystemByName(systemName);
+            if (system == null)
+            {
+                system = new SystemInfo
+                {
+                    SystemName = systemName,
+                    Description = string.IsNullOrWhiteSpace(description) ? null : description,
+                    CuratorName = string.IsNullOrWhiteSpace(curatorName) ? null : curatorName,
+                    CuratorEmail = string.IsNullOrWhiteSpace(curatorEmail) ? null : curatorEmail,
+                    OwnerName = string.IsNullOrWhiteSpace(ownerName) ? null : ownerName,
+                    OwnerEmail = string.IsNullOrWhiteSpace(ownerEmail) ? null : ownerEmail,
+                    TechnicalSpecialistName = string.IsNullOrWhiteSpace(techName) ? null : techName,
+                    TechnicalSpecialistEmail = string.IsNullOrWhiteSpace(techEmail) ? null : techEmail,
+                    IsTestProductionCombined = environment == EnvironmentType.Both
+                };
+
+                system.Id = _dbManager.AddSystem(system);
+                summary.SystemsCreated++;
+            }
+            else
+            {
+                var updated = false;
+
+                if (!string.IsNullOrWhiteSpace(description) && !string.Equals(description, system.Description))
+                {
+                    system.Description = description;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(curatorName) && !string.Equals(curatorName, system.CuratorName))
+                {
+                    system.CuratorName = curatorName;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(curatorEmail) && !string.Equals(curatorEmail, system.CuratorEmail))
+                {
+                    system.CuratorEmail = curatorEmail;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(ownerName) && !string.Equals(ownerName, system.OwnerName))
+                {
+                    system.OwnerName = ownerName;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(ownerEmail) && !string.Equals(ownerEmail, system.OwnerEmail))
+                {
+                    system.OwnerEmail = ownerEmail;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(techName) && !string.Equals(techName, system.TechnicalSpecialistName))
+                {
+                    system.TechnicalSpecialistName = techName;
+                    updated = true;
+                }
+
+                if (!string.IsNullOrWhiteSpace(techEmail) && !string.Equals(techEmail, system.TechnicalSpecialistEmail))
+                {
+                    system.TechnicalSpecialistEmail = techEmail;
+                    updated = true;
+                }
+
+                if (environment == EnvironmentType.Both && !system.IsTestProductionCombined)
+                {
+                    system.IsTestProductionCombined = true;
+                    updated = true;
+                }
+
+                if (updated)
+                {
+                    _dbManager.UpdateSystem(system);
+                    summary.SystemsUpdated++;
+                }
+            }
+
+            var existingEntries = _dbManager.FindIPAddresses(ipAddress);
+            var existingIp = existingEntries.FirstOrDefault(x => x.Environment == environment);
+
+            if (existingIp == null)
+            {
+                var newIp = new IPAddressInfo
+                {
+                    SystemId = system.Id,
+                    IPAddress = ipAddress,
+                    Environment = environment,
+                    IsRegisteredInNamen = isRegistered,
+                    NamenRequestNumber = string.IsNullOrWhiteSpace(requestNumber) ? null : requestNumber
+                };
+
+                _dbManager.AddIPAddress(newIp, registrationDate);
+                summary.IPsCreated++;
+            }
+            else
+            {
+                existingIp.SystemId = system.Id;
+                existingIp.Environment = environment;
+                existingIp.IsRegisteredInNamen = isRegistered;
+                existingIp.NamenRequestNumber = string.IsNullOrWhiteSpace(requestNumber) ? null : requestNumber;
+
+                _dbManager.UpdateIPAddress(existingIp, registrationDate);
+                summary.IPsUpdated++;
+            }
+        }
+
+        private static string GetFieldValue(Dictionary<string, int> headerMap, string[] fields, string column)
+        {
+            if (!headerMap.TryGetValue(column, out var index))
+            {
+                return null;
+            }
+
+            if (index < 0 || index >= fields.Length)
+            {
+                return null;
+            }
+
+            var value = fields[index];
+            return string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+        }
+
+        private static bool ParseBoolean(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return false;
+            }
+
+            var normalized = value.Trim();
+            return normalized.Equals("1") ||
+                   normalized.Equals("true", StringComparison.OrdinalIgnoreCase) ||
+                   normalized.Equals("да", StringComparison.OrdinalIgnoreCase) ||
+                   normalized.Equals("yes", StringComparison.OrdinalIgnoreCase);
+        }
+
+        private static DateTime? ParseDateTime(string value)
+        {
+            if (string.IsNullOrWhiteSpace(value))
+            {
+                return null;
+            }
+
+            var formats = new[]
+            {
+                "yyyy-MM-dd HH:mm:ss",
+                "yyyy-MM-dd",
+                "dd.MM.yyyy HH:mm:ss",
+                "dd.MM.yyyy"
+            };
+
+            if (DateTime.TryParseExact(value, formats, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var exact))
+            {
+                return exact;
+            }
+
+            if (DateTime.TryParse(value, CultureInfo.InvariantCulture, DateTimeStyles.AssumeLocal, out var parsed) ||
+                DateTime.TryParse(value, CultureInfo.GetCultureInfo("ru-RU"), DateTimeStyles.AssumeLocal, out parsed))
+            {
+                return parsed;
+            }
+
+            return null;
+        }
+
+        private class ImportSummary
+        {
+            public int SystemsCreated { get; set; }
+            public int SystemsUpdated { get; set; }
+            public int IPsCreated { get; set; }
+            public int IPsUpdated { get; set; }
+            public int SkippedRows { get; set; }
+            public List<string> Errors { get; } = new List<string>();
         }
     }
 }

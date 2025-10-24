@@ -247,7 +247,7 @@ namespace IPWhiteListManager.Data
             }
         }
 
-        public int AddIPAddress(IPAddressInfo ipAddress)
+        public int AddIPAddress(IPAddressInfo ipAddress, DateTime? registrationDateOverride = null)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -268,6 +268,15 @@ namespace IPWhiteListManager.Data
 
                 var ipId = Convert.ToInt32(command.ExecuteScalar());
 
+                if (registrationDateOverride.HasValue)
+                {
+                    var updateRegistration = connection.CreateCommand();
+                    updateRegistration.CommandText = "UPDATE IPAddresses SET RegistrationDate = @RegistrationDate WHERE Id = @Id";
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@RegistrationDate", registrationDateOverride.Value));
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@Id", ipId));
+                    updateRegistration.ExecuteNonQuery();
+                }
+
                 if (ipAddress.Environment == EnvironmentType.Both)
                 {
                     var updateSystem = connection.CreateCommand();
@@ -280,7 +289,7 @@ namespace IPWhiteListManager.Data
             }
         }
 
-        public void UpdateIPAddress(IPAddressInfo ipAddress)
+        public void UpdateIPAddress(IPAddressInfo ipAddress, DateTime? registrationDateOverride = null)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -304,6 +313,15 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@Id", ipAddress.Id));
 
                 command.ExecuteNonQuery();
+
+                if (registrationDateOverride.HasValue)
+                {
+                    var updateRegistration = connection.CreateCommand();
+                    updateRegistration.CommandText = "UPDATE IPAddresses SET RegistrationDate = @RegistrationDate WHERE Id = @Id";
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@RegistrationDate", registrationDateOverride.Value));
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@Id", ipAddress.Id));
+                    updateRegistration.ExecuteNonQuery();
+                }
 
                 if (ipAddress.Environment == EnvironmentType.Both)
                 {
