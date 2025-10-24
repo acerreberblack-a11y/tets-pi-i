@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Linq;
+using System.Net;
 using System.Windows.Forms;
 using IPWhiteListManager.Data;
 using IPWhiteListManager.Models;
@@ -38,6 +39,9 @@ namespace IPWhiteListManager.Forms
             btnCancel.Click += BtnCancel_Click;
             btnEditSystem.Click += BtnEditSystem_Click;
             txtIPAddress.TextChanged += TxtIPAddress_TextChanged;
+            btnAddIp.Click += BtnAddIp_Click;
+            btnRemoveIp.Click += BtnRemoveIp_Click;
+            dgvIpAddresses.SelectionChanged += DgvIpAddresses_SelectionChanged;
             txtRequestNumber.TextChanged += TxtRequestNumber_TextChanged;
             chkCombined.CheckedChanged += ChkCombined_CheckedChanged;
             chkProduction.CheckedChanged += EnvironmentCheckBoxChanged;
@@ -49,6 +53,8 @@ namespace IPWhiteListManager.Forms
             toolTip.SetToolTip(cmbSystem, "Начните вводить название для быстрого поиска или добавьте новую ИС");
             toolTip.SetToolTip(btnEditSystem, "Открыть карточку выбранной ИС или создать новую");
             toolTip.SetToolTip(txtIPAddress, "Укажите один IP-адрес в формате IPv4");
+            toolTip.SetToolTip(btnAddIp, "Добавить IP-адрес в таблицу для пакетного сохранения");
+            toolTip.SetToolTip(btnRemoveIp, "Удалить выбранный IP из списка");
             toolTip.SetToolTip(chkCombined, "Автоматически отметит прод и тест, если IP общий");
             toolTip.SetToolTip(txtRequestNumber, "Если IP уже зарегистрирован в namen, укажите номер заявки");
             toolTip.SetToolTip(chkRegisterNamen, "Отправить заявку в namen сразу после сохранения IP");
@@ -61,7 +67,13 @@ namespace IPWhiteListManager.Forms
             {
                 Text = "Редактирование IP";
                 btnSave.Text = "Сохранить";
+                ToggleMultiIpControls(false);
                 PopulateFromExisting();
+            }
+            else
+            {
+                ToggleMultiIpControls(true);
+                UpdateIpListControls();
             }
         }
 
@@ -100,7 +112,7 @@ namespace IPWhiteListManager.Forms
 
         private void TxtIPAddress_TextChanged(object sender, EventArgs e)
         {
-            CheckExistingIP();
+            CheckExistingIP(txtIPAddress.Text.Trim(), adjustFormState: true, showExistingMessage: false);
         }
 
         private void TxtRequestNumber_TextChanged(object sender, EventArgs e)
@@ -118,11 +130,20 @@ namespace IPWhiteListManager.Forms
             UpdateNamenStatusLabel();
         }
 
-        private void CheckExistingIP()
+        private bool CheckExistingIP(string ipAddress, bool adjustFormState, bool showExistingMessage)
         {
-            string ipAddress = txtIPAddress.Text.Trim();
             if (string.IsNullOrEmpty(ipAddress))
-                return;
+            {
+                if (adjustFormState)
+                {
+                    cmbSystem.Enabled = true;
+                    chkProduction.Enabled = true;
+                    chkTest.Enabled = true;
+                    chkCombined.Enabled = true;
+                }
+
+                return true;
+            }
 
             var existingIPs = _dbManager
                 .FindIPAddresses(ipAddress)
@@ -133,44 +154,54 @@ namespace IPWhiteListManager.Forms
             {
                 var firstIP = existingIPs.First();
 
-                cmbSystem.Text = firstIP.SystemName;
-                cmbSystem.Enabled = false;
-
-                switch (firstIP.Environment)
+                if (adjustFormState)
                 {
-                    case EnvironmentType.Production:
-                        chkProduction.Checked = true;
-                        chkProduction.Enabled = false;
-                        chkTest.Checked = false;
-                        chkTest.Enabled = true;
-                        SetCombinedState(false, false);
-                        chkCombined.Enabled = false;
-                        break;
-                    case EnvironmentType.Test:
-                        chkProduction.Checked = false;
-                        chkProduction.Enabled = true;
-                        chkTest.Checked = true;
-                        chkTest.Enabled = false;
-                        SetCombinedState(false, false);
-                        chkCombined.Enabled = false;
-                        break;
-                    case EnvironmentType.Both:
-                        chkProduction.Checked = true;
-                        chkProduction.Enabled = false;
-                        chkTest.Checked = true;
-                        chkTest.Enabled = false;
-                        SetCombinedState(true, false);
-                        chkCombined.Enabled = false;
-                        break;
+                    cmbSystem.Text = firstIP.SystemName;
+                    cmbSystem.Enabled = false;
+
+                    switch (firstIP.Environment)
+                    {
+                        case EnvironmentType.Production:
+                            chkProduction.Checked = true;
+                            chkProduction.Enabled = false;
+                            chkTest.Checked = false;
+                            chkTest.Enabled = true;
+                            SetCombinedState(false, false);
+                            chkCombined.Enabled = false;
+                            break;
+                        case EnvironmentType.Test:
+                            chkProduction.Checked = false;
+                            chkProduction.Enabled = true;
+                            chkTest.Checked = true;
+                            chkTest.Enabled = false;
+                            SetCombinedState(false, false);
+                            chkCombined.Enabled = false;
+                            break;
+                        case EnvironmentType.Both:
+                            chkProduction.Checked = true;
+                            chkProduction.Enabled = false;
+                            chkTest.Checked = true;
+                            chkTest.Enabled = false;
+                            SetCombinedState(true, false);
+                            chkCombined.Enabled = false;
+                            break;
+                    }
+
+                    UpdateSystemDetails();
                 }
 
-                UpdateSystemDetails();
-                MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment}).\n" +
-                               "Система и текущее окружение заблокированы для редактирования.",
-                               "IP-адрес найден",
-                               MessageBoxButtons.OK, MessageBoxIcon.Information);
+                if (showExistingMessage)
+                {
+                    MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment})." + Environment.NewLine
+                                   + "Система и текущее окружение заблокированы для редактирования.",
+                                   "IP-адрес найден",
+                                   MessageBoxButtons.OK, MessageBoxIcon.Information);
+                }
+
+                return false;
             }
-            else
+
+            if (adjustFormState)
             {
                 cmbSystem.Enabled = true;
                 chkProduction.Enabled = true;
@@ -179,10 +210,18 @@ namespace IPWhiteListManager.Forms
                 SetCombinedState(false, false);
                 UpdateSystemDetails();
             }
+
+            return true;
         }
 
-        private void BtnSave_Click(object sender, EventArgs e)
+
+        private async void BtnSave_Click(object sender, EventArgs e)
         {
+            if (!EnsurePendingIpCaptured())
+            {
+                return;
+            }
+
             if (string.IsNullOrEmpty(cmbSystem.Text))
             {
                 MessageBox.Show("Введите или выберите систему", "Ошибка",
@@ -190,9 +229,18 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            if (string.IsNullOrEmpty(txtIPAddress.Text))
+            if (_isEditMode)
             {
-                MessageBox.Show("Введите IP-адрес", "Ошибка",
+                if (string.IsNullOrEmpty(txtIPAddress.Text))
+                {
+                    MessageBox.Show("Введите IP-адрес", "Ошибка",
+                        MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    return;
+                }
+            }
+            else if (GetIpEntries().Count == 0)
+            {
+                MessageBox.Show("Добавьте хотя бы один IP-адрес в таблицу", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -214,25 +262,25 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            var ipInfo = new IPAddressInfo
-            {
-                Id = _ipToEdit?.Id ?? 0,
-                SystemId = systemId,
-                IPAddress = txtIPAddress.Text.Trim(),
-                Environment = environment,
-                IsRegisteredInNamen = CalculateRegistrationState(),
-                NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) ? null : txtRequestNumber.Text.Trim()
-            };
-
             try
             {
                 if (_isEditMode)
                 {
+                    var ipInfo = new IPAddressInfo
+                    {
+                        Id = _ipToEdit?.Id ?? 0,
+                        SystemId = systemId,
+                        IPAddress = txtIPAddress.Text.Trim(),
+                        Environment = environment,
+                        IsRegisteredInNamen = CalculateRegistrationState(),
+                        NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) ? null : txtRequestNumber.Text.Trim()
+                    };
+
                     _dbManager.UpdateIPAddress(ipInfo);
 
                     if (ShouldRegisterInNamen())
                     {
-                        RegisterInNamen(ipInfo.Id, ipInfo.IPAddress, environment.ToString());
+                        await RegisterInNamenAsync(new List<IPAddressInfo> { ipInfo }, environment.ToString());
                     }
                     else
                     {
@@ -244,15 +292,36 @@ namespace IPWhiteListManager.Forms
                 }
                 else
                 {
-                    var ipId = _dbManager.AddIPAddress(ipInfo);
+                    var pendingIps = GetIpEntries();
+                    var createdIps = new List<IPAddressInfo>();
+
+                    foreach (var ipAddress in pendingIps)
+                    {
+                        var ipInfo = new IPAddressInfo
+                        {
+                            SystemId = systemId,
+                            IPAddress = ipAddress,
+                            Environment = environment,
+                            IsRegisteredInNamen = CalculateRegistrationState(),
+                            NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) ? null : txtRequestNumber.Text.Trim()
+                        };
+
+                        var ipId = _dbManager.AddIPAddress(ipInfo);
+                        ipInfo.Id = ipId;
+                        createdIps.Add(ipInfo);
+                    }
 
                     if (chkRegisterNamen.Checked && string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
                     {
-                        RegisterInNamen(ipId, ipInfo.IPAddress, environment.ToString());
+                        await RegisterInNamenAsync(createdIps, environment.ToString());
                     }
                     else
                     {
-                        MessageBox.Show("IP-адрес успешно добавлен", "Успех",
+                        var successMessage = createdIps.Count == 1
+                            ? "IP-адрес успешно добавлен"
+                            : "IP-адреса успешно добавлены";
+
+                        MessageBox.Show(successMessage, "Успех",
                             MessageBoxButtons.OK, MessageBoxIcon.Information);
                         DialogResult = DialogResult.OK;
                         Close();
@@ -295,6 +364,125 @@ namespace IPWhiteListManager.Forms
             }
 
             return -1;
+        }
+
+        private void BtnAddIp_Click(object sender, EventArgs e)
+        {
+            var ipAddress = txtIPAddress.Text.Trim();
+
+            if (string.IsNullOrEmpty(ipAddress))
+            {
+                MessageBox.Show("Введите IP-адрес, прежде чем добавлять его в список", "Подсказка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!IPAddress.TryParse(ipAddress, out var parsed) || parsed.AddressFamily != System.Net.Sockets.AddressFamily.InterNetwork)
+            {
+                MessageBox.Show("Введите корректный IPv4-адрес", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+                return;
+            }
+
+            if (IsIpAlreadyListed(ipAddress))
+            {
+                MessageBox.Show("Такой IP-адрес уже есть в таблице", "Подсказка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            if (!CheckExistingIP(ipAddress, adjustFormState: true, showExistingMessage: true))
+            {
+                return;
+            }
+
+            dgvIpAddresses.Rows.Add(ipAddress);
+            txtIPAddress.Clear();
+            txtIPAddress.Focus();
+            UpdateIpListControls();
+        }
+
+        private void BtnRemoveIp_Click(object sender, EventArgs e)
+        {
+            if (dgvIpAddresses.SelectedRows.Count == 0)
+            {
+                return;
+            }
+
+            foreach (DataGridViewRow row in dgvIpAddresses.SelectedRows)
+            {
+                if (!row.IsNewRow)
+                {
+                    dgvIpAddresses.Rows.Remove(row);
+                }
+            }
+
+            UpdateIpListControls();
+        }
+
+        private void DgvIpAddresses_SelectionChanged(object sender, EventArgs e)
+        {
+            UpdateIpListControls();
+        }
+
+        private bool EnsurePendingIpCaptured()
+        {
+            if (_isEditMode)
+            {
+                return true;
+            }
+
+            var ipAddress = txtIPAddress.Text.Trim();
+            if (string.IsNullOrEmpty(ipAddress))
+            {
+                return true;
+            }
+
+            var previousCount = dgvIpAddresses.Rows.Count;
+            BtnAddIp_Click(this, EventArgs.Empty);
+            return dgvIpAddresses.Rows.Count > previousCount;
+        }
+
+        private List<string> GetIpEntries()
+        {
+            return dgvIpAddresses.Rows
+                .Cast<DataGridViewRow>()
+                .Select(r => r.Cells[colIpAddress.Index].Value?.ToString())
+                .Where(v => !string.IsNullOrWhiteSpace(v))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .ToList();
+        }
+
+        private bool IsIpAlreadyListed(string ipAddress)
+        {
+            return dgvIpAddresses.Rows
+                .Cast<DataGridViewRow>()
+                .Any(r => string.Equals(r.Cells[colIpAddress.Index].Value?.ToString(), ipAddress, StringComparison.OrdinalIgnoreCase));
+        }
+
+        private void UpdateIpListControls()
+        {
+            if (_isEditMode)
+            {
+                btnRemoveIp.Enabled = false;
+                return;
+            }
+
+            btnRemoveIp.Enabled = dgvIpAddresses.SelectedRows.Count > 0;
+        }
+
+        private void ToggleMultiIpControls(bool enabled)
+        {
+            lblIpList.Visible = enabled;
+            dgvIpAddresses.Visible = enabled;
+            btnAddIp.Visible = enabled;
+            btnRemoveIp.Visible = enabled;
+
+            lblIpList.Enabled = enabled;
+            dgvIpAddresses.Enabled = enabled;
+            btnAddIp.Enabled = enabled;
+            btnRemoveIp.Enabled = enabled && dgvIpAddresses.SelectedRows.Count > 0;
+            UpdateIpListControls();
         }
 
         private void ChkCombined_CheckedChanged(object sender, EventArgs e)
@@ -369,26 +557,43 @@ namespace IPWhiteListManager.Forms
                 return EnvironmentType.Test;
         }
 
-        private async void RegisterInNamen(int ipAddressId, string ipAddress, string environment)
+        private async System.Threading.Tasks.Task RegisterInNamenAsync(List<IPAddressInfo> ipAddresses, string environment)
         {
             try
             {
                 var namenService = new Services.NamenService();
-                var result = await namenService.RegisterIPInNamen(ipAddress, environment);
+                var failedRegistrations = new List<string>();
+                var createdRequests = new List<string>();
 
-                if (result.Success)
+                foreach (var ipInfo in ipAddresses)
                 {
-                    _dbManager.UpdateNamenRegistration(ipAddressId, true, result.RequestNumber);
-                    MessageBox.Show($"IP {ipAddress} успешно зарегистрирован в namen\nНомер заявки: {result.RequestNumber}", "Успех",
-                        MessageBoxButtons.OK, MessageBoxIcon.Information);
-                    DialogResult = DialogResult.OK;
-                    Close();
+                    var result = await namenService.RegisterIPInNamen(ipInfo.IPAddress, environment);
+
+                    if (result.Success)
+                    {
+                        _dbManager.UpdateNamenRegistration(ipInfo.Id, true, result.RequestNumber);
+                        createdRequests.Add($"{ipInfo.IPAddress} → {result.RequestNumber}");
+                    }
+                    else
+                    {
+                        failedRegistrations.Add(ipInfo.IPAddress);
+                    }
                 }
-                else
+
+                if (createdRequests.Count > 0)
                 {
-                    MessageBox.Show($"Не удалось зарегистрировать IP {ipAddress} в namen", "Предупреждение",
-                        MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                    MessageBox.Show("IP успешно зарегистрированы в namen:\n" + string.Join(Environment.NewLine, createdRequests),
+                        "Успех", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
+
+                if (failedRegistrations.Count > 0)
+                {
+                    MessageBox.Show("Не удалось зарегистрировать следующие IP в namen:\n" + string.Join(Environment.NewLine, failedRegistrations),
+                        "Предупреждение", MessageBoxButtons.OK, MessageBoxIcon.Warning);
+                }
+
+                DialogResult = DialogResult.OK;
+                Close();
             }
             catch (Exception ex)
             {
