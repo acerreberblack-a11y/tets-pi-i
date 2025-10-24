@@ -28,11 +28,14 @@ namespace IPWhiteListManager.Forms
             this.txtTechInfo = new System.Windows.Forms.TextBox();
             this.lblSelectedItem = new System.Windows.Forms.Label();
             this.panelFilters = new System.Windows.Forms.Panel();
+            this.btnExportCsv = new System.Windows.Forms.Button();
             this.lblEnvironment = new System.Windows.Forms.Label();
             this.lblSystem = new System.Windows.Forms.Label();
             this.lblFilter = new System.Windows.Forms.Label();
             this.panelTechInfo = new System.Windows.Forms.Panel();
+            this.btnDeleteSystem = new System.Windows.Forms.Button();
             this.btnEditSystem = new System.Windows.Forms.Button();
+            this.btnDeleteIP = new System.Windows.Forms.Button();
             this.btnEditIP = new System.Windows.Forms.Button();
             this.tblContacts = new System.Windows.Forms.TableLayoutPanel();
             this.lblOwnerEmailValue = new System.Windows.Forms.Label();
@@ -68,52 +71,52 @@ namespace IPWhiteListManager.Forms
             // 
             this.txtFilter.Location = new System.Drawing.Point(33, 12);
             this.txtFilter.Name = "txtFilter";
-            this.txtFilter.Size = new System.Drawing.Size(181, 20);
+            this.txtFilter.Size = new System.Drawing.Size(160, 20);
             this.txtFilter.TabIndex = 1;
             // 
             // cmbSystemFilter
             // 
             this.cmbSystemFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cmbSystemFilter.FormattingEnabled = true;
-            this.cmbSystemFilter.Location = new System.Drawing.Point(240, 12);
+            this.cmbSystemFilter.Location = new System.Drawing.Point(225, 12);
             this.cmbSystemFilter.Name = "cmbSystemFilter";
-            this.cmbSystemFilter.Size = new System.Drawing.Size(242, 21);
+            this.cmbSystemFilter.Size = new System.Drawing.Size(210, 21);
             this.cmbSystemFilter.TabIndex = 2;
             // 
             // cmbEnvironmentFilter
             // 
             this.cmbEnvironmentFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
             this.cmbEnvironmentFilter.FormattingEnabled = true;
-            this.cmbEnvironmentFilter.Location = new System.Drawing.Point(536, 12);
+            this.cmbEnvironmentFilter.Location = new System.Drawing.Point(467, 12);
             this.cmbEnvironmentFilter.Name = "cmbEnvironmentFilter";
-            this.cmbEnvironmentFilter.Size = new System.Drawing.Size(224, 21);
+            this.cmbEnvironmentFilter.Size = new System.Drawing.Size(150, 21);
             this.cmbEnvironmentFilter.TabIndex = 3;
             // 
             // btnSearch
             // 
             this.btnSearch.BackColor = System.Drawing.Color.SteelBlue;
             this.btnSearch.ForeColor = System.Drawing.Color.White;
-            this.btnSearch.Location = new System.Drawing.Point(706, 9);
+            this.btnSearch.Location = new System.Drawing.Point(727, 9);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(80, 25);
             this.btnSearch.TabIndex = 4;
             this.btnSearch.Text = "Поиск";
             this.btnSearch.UseVisualStyleBackColor = false;
-            // 
+            //
             // btnAddIP
-            // 
-            this.btnAddIP.Location = new System.Drawing.Point(897, 9);
+            //
+            this.btnAddIP.Location = new System.Drawing.Point(917, 9);
             this.btnAddIP.Name = "btnAddIP";
-            this.btnAddIP.Size = new System.Drawing.Size(90, 25);
+            this.btnAddIP.Size = new System.Drawing.Size(80, 25);
             this.btnAddIP.TabIndex = 5;
             this.btnAddIP.Text = "Добавить IP";
             this.btnAddIP.UseVisualStyleBackColor = true;
-            // 
+            //
             // btnAddSystem
-            // 
-            this.btnAddSystem.Location = new System.Drawing.Point(797, 9);
+            //
+            this.btnAddSystem.Location = new System.Drawing.Point(817, 9);
             this.btnAddSystem.Name = "btnAddSystem";
-            this.btnAddSystem.Size = new System.Drawing.Size(94, 25);
+            this.btnAddSystem.Size = new System.Drawing.Size(100, 25);
             this.btnAddSystem.TabIndex = 6;
             this.btnAddSystem.Text = "Добавить ИС";
             this.btnAddSystem.UseVisualStyleBackColor = true;
@@ -155,6 +158,7 @@ namespace IPWhiteListManager.Forms
             // panelFilters
             // 
             this.panelFilters.BackColor = System.Drawing.Color.Lavender;
+            this.panelFilters.Controls.Add(this.btnExportCsv);
             this.panelFilters.Controls.Add(this.lblEnvironment);
             this.panelFilters.Controls.Add(this.lblSystem);
             this.panelFilters.Controls.Add(this.lblFilter);
@@ -170,11 +174,20 @@ namespace IPWhiteListManager.Forms
             this.panelFilters.Padding = new System.Windows.Forms.Padding(10);
             this.panelFilters.Size = new System.Drawing.Size(1000, 60);
             this.panelFilters.TabIndex = 9;
-            // 
+            //
+            // btnExportCsv
+            //
+            this.btnExportCsv.Location = new System.Drawing.Point(627, 9);
+            this.btnExportCsv.Name = "btnExportCsv";
+            this.btnExportCsv.Size = new System.Drawing.Size(90, 25);
+            this.btnExportCsv.TabIndex = 9;
+            this.btnExportCsv.Text = "Экспорт CSV";
+            this.btnExportCsv.UseVisualStyleBackColor = true;
+            //
             // lblEnvironment
-            // 
+            //
             this.lblEnvironment.AutoSize = true;
-            this.lblEnvironment.Location = new System.Drawing.Point(488, 15);
+            this.lblEnvironment.Location = new System.Drawing.Point(445, 15);
             this.lblEnvironment.Name = "lblEnvironment";
             this.lblEnvironment.Size = new System.Drawing.Size(42, 13);
             this.lblEnvironment.TabIndex = 8;
@@ -201,7 +214,9 @@ namespace IPWhiteListManager.Forms
             // panelTechInfo
             // 
             this.panelTechInfo.BackColor = System.Drawing.Color.AliceBlue;
+            this.panelTechInfo.Controls.Add(this.btnDeleteSystem);
             this.panelTechInfo.Controls.Add(this.btnEditSystem);
+            this.panelTechInfo.Controls.Add(this.btnDeleteIP);
             this.panelTechInfo.Controls.Add(this.btnEditIP);
             this.panelTechInfo.Controls.Add(this.tblContacts);
             this.panelTechInfo.Controls.Add(this.lblSelectedItem);
@@ -214,18 +229,36 @@ namespace IPWhiteListManager.Forms
             this.panelTechInfo.Size = new System.Drawing.Size(1000, 180);
             this.panelTechInfo.TabIndex = 10;
             // 
+            // btnDeleteSystem
+            //
+            this.btnDeleteSystem.Location = new System.Drawing.Point(740, 145);
+            this.btnDeleteSystem.Name = "btnDeleteSystem";
+            this.btnDeleteSystem.Size = new System.Drawing.Size(170, 25);
+            this.btnDeleteSystem.TabIndex = 12;
+            this.btnDeleteSystem.Text = "Удалить ИС";
+            this.btnDeleteSystem.UseVisualStyleBackColor = true;
+            //
             // btnEditSystem
-            // 
-            this.btnEditSystem.Location = new System.Drawing.Point(400, 145);
+            //
+            this.btnEditSystem.Location = new System.Drawing.Point(560, 145);
             this.btnEditSystem.Name = "btnEditSystem";
-            this.btnEditSystem.Size = new System.Drawing.Size(140, 25);
+            this.btnEditSystem.Size = new System.Drawing.Size(170, 25);
             this.btnEditSystem.TabIndex = 10;
             this.btnEditSystem.Text = "Редактировать ИС";
             this.btnEditSystem.UseVisualStyleBackColor = true;
-            // 
+            //
+            // btnDeleteIP
+            //
+            this.btnDeleteIP.Location = new System.Drawing.Point(380, 145);
+            this.btnDeleteIP.Name = "btnDeleteIP";
+            this.btnDeleteIP.Size = new System.Drawing.Size(170, 25);
+            this.btnDeleteIP.TabIndex = 11;
+            this.btnDeleteIP.Text = "Удалить IP";
+            this.btnDeleteIP.UseVisualStyleBackColor = true;
+            //
             // btnEditIP
-            // 
-            this.btnEditIP.Location = new System.Drawing.Point(210, 145);
+            //
+            this.btnEditIP.Location = new System.Drawing.Point(200, 145);
             this.btnEditIP.Name = "btnEditIP";
             this.btnEditIP.Size = new System.Drawing.Size(170, 25);
             this.btnEditIP.TabIndex = 9;
@@ -377,5 +410,8 @@ namespace IPWhiteListManager.Forms
         private System.Windows.Forms.Label lblTechTitle;
         private System.Windows.Forms.Button btnEditSystem;
         private System.Windows.Forms.Button btnEditIP;
+        private System.Windows.Forms.Button btnDeleteSystem;
+        private System.Windows.Forms.Button btnDeleteIP;
+        private System.Windows.Forms.Button btnExportCsv;
     }
 }

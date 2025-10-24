@@ -400,8 +400,8 @@ namespace IPWhiteListManager.Data
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
-                    UPDATE IPAddresses 
-                    SET IsRegisteredInNamen = @IsRegistered, 
+                    UPDATE IPAddresses
+                    SET IsRegisteredInNamen = @IsRegistered,
                         NamenRequestNumber = @RequestNumber
                     WHERE Id = @Id";
 
@@ -409,6 +409,20 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@RequestNumber", requestNumber ?? (object)DBNull.Value));
                 command.Parameters.Add(new SQLiteParameter("@Id", ipAddressId));
                 command.ExecuteNonQuery();
+            }
+        }
+
+        public bool DeleteIPAddress(int ipAddressId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "DELETE FROM IPAddresses WHERE Id = @Id";
+                command.Parameters.Add(new SQLiteParameter("@Id", ipAddressId));
+
+                return command.ExecuteNonQuery() > 0;
             }
         }
 
@@ -484,6 +498,20 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@Id", system.Id));
 
                 command.ExecuteNonQuery();
+            }
+        }
+
+        public bool DeleteSystem(int systemId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "DELETE FROM Systems WHERE Id = @Id";
+                command.Parameters.Add(new SQLiteParameter("@Id", systemId));
+
+                return command.ExecuteNonQuery() > 0;
             }
         }
     }

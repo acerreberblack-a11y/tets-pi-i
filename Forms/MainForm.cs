@@ -1,7 +1,9 @@
 ﻿using System;
 using System.Collections.Generic;
 using System.ComponentModel;
+using System.IO;
 using System.Linq;
+using System.Text;
 using System.Windows.Forms;
 using IPWhiteListManager.Data;
 using IPWhiteListManager.Models;
@@ -34,6 +36,9 @@ namespace IPWhiteListManager.Forms
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
             this.btnEditIP.Click += BtnEditIP_Click;
             this.btnEditSystem.Click += BtnEditSystem_Click;
+            this.btnDeleteIP.Click += BtnDeleteIP_Click;
+            this.btnDeleteSystem.Click += BtnDeleteSystem_Click;
+            this.btnExportCsv.Click += BtnExportCsv_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
@@ -42,6 +47,9 @@ namespace IPWhiteListManager.Forms
 
             UpdateContactInfo(null);
             btnEditIP.Enabled = false;
+            btnDeleteIP.Enabled = false;
+            btnEditSystem.Enabled = false;
+            btnDeleteSystem.Enabled = false;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -82,6 +90,7 @@ namespace IPWhiteListManager.Forms
             }
 
             ApplyFilters();
+            UpdateSystemButtonState();
         }
 
         private void SetupDataGridView()
@@ -128,6 +137,7 @@ namespace IPWhiteListManager.Forms
             SetupDataGridView();
             _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
             dgvIPAddresses.DataSource = _ipAddresses;
+            _selectedIP = null;
         }
 
         private void BtnSearch_Click(object sender, EventArgs e)
@@ -169,11 +179,16 @@ namespace IPWhiteListManager.Forms
             }
 
             BindIpAddresses(filtered);
+            UpdateSystemButtonState();
         }
 
         private void FilterControlChanged(object sender, EventArgs e)
         {
             ApplyFilters();
+            if (sender == cmbSystemFilter)
+            {
+                UpdateSystemButtonState();
+            }
         }
 
         private void DgvIPAddresses_SelectionChanged(object sender, EventArgs e)
@@ -189,8 +204,10 @@ namespace IPWhiteListManager.Forms
                 txtTechInfo.Text = "";
                 btnRegisterNamen.Enabled = false;
                 btnEditIP.Enabled = false;
+                btnDeleteIP.Enabled = false;
                 _selectedIP = null;
                 UpdateContactInfo(null);
+                UpdateSystemButtonState();
                 return;
             }
 
@@ -199,6 +216,7 @@ namespace IPWhiteListManager.Forms
 
             lblSelectedItem.Text = $"{_selectedIP.SystemName} ({_selectedIP.IPAddress}) - {_selectedIP.Environment}";
             btnEditIP.Enabled = true;
+            btnDeleteIP.Enabled = true;
             UpdateContactInfo(system);
 
             var techInfo = new List<string>();
@@ -228,6 +246,7 @@ namespace IPWhiteListManager.Forms
 
             // Обновление состояния кнопки
             btnRegisterNamen.Enabled = !_selectedIP.IsRegisteredInNamen && string.IsNullOrEmpty(_selectedIP.NamenRequestNumber);
+            UpdateSystemButtonState();
         }
 
         private void BtnAddIP_Click(object sender, EventArgs e)
@@ -238,6 +257,7 @@ namespace IPWhiteListManager.Forms
                 {
                     LoadData();
                     ApplyFilters();
+                    UpdateSystemButtonState();
                 }
             }
         }
@@ -250,6 +270,7 @@ namespace IPWhiteListManager.Forms
                 {
                     LoadData();
                     ApplyFilters();
+                    UpdateSystemButtonState();
                 }
             }
         }
@@ -289,6 +310,7 @@ namespace IPWhiteListManager.Forms
                         MessageBoxButtons.OK, MessageBoxIcon.Information);
                     LoadData();
                     ApplyFilters();
+                    UpdateSystemButtonState();
                 }
                 else
                 {
@@ -336,6 +358,7 @@ namespace IPWhiteListManager.Forms
                 {
                     LoadData();
                     SelectIpRow(ipId);
+                    UpdateSystemButtonState();
                 }
             }
         }
@@ -377,8 +400,41 @@ namespace IPWhiteListManager.Forms
                     {
                         SelectIpRow(selectedIpId.Value);
                     }
+                    UpdateSystemButtonState();
                 }
             }
+        }
+
+        private void BtnDeleteIP_Click(object sender, EventArgs e)
+        {
+            if (_selectedIP == null)
+            {
+                MessageBox.Show("Выберите IP-адрес для удаления", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                $"Удалить IP {_selectedIP.IPAddress} ({_selectedIP.Environment})?", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Question);
+
+            if (confirmation != DialogResult.Yes)
+            {
+                return;
+            }
+
+            if (_dbManager.DeleteIPAddress(_selectedIP.Id))
+            {
+                MessageBox.Show("IP-адрес удален", "Информация", MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
+                ApplyFilters();
+            }
+            else
+            {
+                MessageBox.Show("Не удалось удалить IP-адрес", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            UpdateSystemButtonState();
         }
 
         private void UpdateContactInfo(SystemInfo system)
@@ -432,6 +488,134 @@ namespace IPWhiteListManager.Forms
                     return;
                 }
             }
+        }
+
+        private void BtnDeleteSystem_Click(object sender, EventArgs e)
+        {
+            var systemToDelete = ResolveSystemFromContext();
+
+            if (systemToDelete == null)
+            {
+                MessageBox.Show("Выберите ИС для удаления", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            var confirmation = MessageBox.Show(
+                $"Удалить ИС '{systemToDelete.SystemName}' и связанные IP?", "Подтверждение",
+                MessageBoxButtons.YesNo, MessageBoxIcon.Warning);
+
+            if (confirmation != DialogResult.Yes)
+            {
+                return;
+            }
+
+            if (_dbManager.DeleteSystem(systemToDelete.Id))
+            {
+                MessageBox.Show("Информационная система удалена", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                LoadData();
+                cmbSystemFilter.SelectedIndex = 0;
+                ApplyFilters();
+            }
+            else
+            {
+                MessageBox.Show("Не удалось удалить ИС", "Ошибка",
+                    MessageBoxButtons.OK, MessageBoxIcon.Error);
+            }
+
+            UpdateSystemButtonState();
+        }
+
+        private SystemInfo ResolveSystemFromContext()
+        {
+            if (_selectedIP != null)
+            {
+                var system = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
+                if (system != null)
+                {
+                    return system;
+                }
+            }
+
+            if (cmbSystemFilter.SelectedIndex > 0)
+            {
+                var selectedName = cmbSystemFilter.SelectedItem.ToString();
+                return _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+            }
+
+            return null;
+        }
+
+        private void UpdateSystemButtonState()
+        {
+            var systemAvailable = ResolveSystemFromContext() != null;
+            btnEditSystem.Enabled = systemAvailable;
+            btnDeleteSystem.Enabled = systemAvailable;
+        }
+
+        private void BtnExportCsv_Click(object sender, EventArgs e)
+        {
+            if (_ipAddresses == null || _ipAddresses.Count == 0)
+            {
+                MessageBox.Show("Нет данных для выгрузки", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            using (var dialog = new SaveFileDialog())
+            {
+                dialog.Filter = "CSV файлы (*.csv)|*.csv";
+                dialog.FileName = $"ip_export_{DateTime.Now:yyyyMMdd_HHmm}.csv";
+
+                if (dialog.ShowDialog(this) == DialogResult.OK)
+                {
+                    try
+                    {
+                        ExportCurrentDataToCsv(dialog.FileName);
+                        MessageBox.Show("Данные успешно сохранены", "Информация",
+                            MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    }
+                    catch (Exception ex)
+                    {
+                        MessageBox.Show($"Ошибка при сохранении файла: {ex.Message}", "Ошибка",
+                            MessageBoxButtons.OK, MessageBoxIcon.Error);
+                    }
+                }
+            }
+        }
+
+        private void ExportCurrentDataToCsv(string filePath)
+        {
+            var builder = new StringBuilder();
+            builder.AppendLine("SystemName;Environment;IPAddress;IsRegisteredInNamen;NamenRequestNumber;RegistrationDate;OwnerName;OwnerEmail;TechnicalSpecialistName;TechnicalSpecialistEmail");
+
+            foreach (var ip in _ipAddresses)
+            {
+                var system = _systems.FirstOrDefault(s => s.Id == ip.SystemId);
+
+                builder.AppendLine(string.Join(";", new[]
+                {
+                    CsvValue(ip.SystemName),
+                    CsvValue(ip.Environment.ToString()),
+                    CsvValue(ip.IPAddress),
+                    CsvValue(ip.IsRegisteredInNamen ? "true" : "false"),
+                    CsvValue(ip.NamenRequestNumber),
+                    CsvValue(ip.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
+                    CsvValue(system?.OwnerName),
+                    CsvValue(system?.OwnerEmail),
+                    CsvValue(system?.TechnicalSpecialistName),
+                    CsvValue(system?.TechnicalSpecialistEmail)
+                }));
+            }
+
+            File.WriteAllText(filePath, builder.ToString(), Encoding.UTF8);
+        }
+
+        private static string CsvValue(string value)
+        {
+            var sanitized = (value ?? string.Empty).Replace("\"", "\"\"");
+            return $"\"{sanitized}\"";
         }
     }
 }
