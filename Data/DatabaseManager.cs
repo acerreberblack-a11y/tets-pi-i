@@ -31,6 +31,10 @@ namespace IPWhiteListManager.Data
                         IsTestProductionCombined BOOLEAN DEFAULT 0,
                         CuratorName TEXT,
                         CuratorEmail TEXT,
+                        OwnerName TEXT,
+                        OwnerEmail TEXT,
+                        TechnicalSpecialistName TEXT,
+                        TechnicalSpecialistEmail TEXT,
                         CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP
                     );
 
@@ -50,6 +54,8 @@ namespace IPWhiteListManager.Data
                     CREATE INDEX IF NOT EXISTS IX_Systems_SystemName ON Systems(SystemName);
                 ";
                 command.ExecuteNonQuery();
+
+                EnsureSystemsTableColumns(connection);
             }
         }
 
@@ -61,8 +67,26 @@ namespace IPWhiteListManager.Data
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
-                    INSERT INTO Systems (SystemName, Description, IsTestProductionCombined, CuratorName, CuratorEmail)
-                    VALUES (@SystemName, @Description, @IsTestProductionCombined, @CuratorName, @CuratorEmail);
+                    INSERT INTO Systems (
+                        SystemName,
+                        Description,
+                        IsTestProductionCombined,
+                        CuratorName,
+                        CuratorEmail,
+                        OwnerName,
+                        OwnerEmail,
+                        TechnicalSpecialistName,
+                        TechnicalSpecialistEmail)
+                    VALUES (
+                        @SystemName,
+                        @Description,
+                        @IsTestProductionCombined,
+                        @CuratorName,
+                        @CuratorEmail,
+                        @OwnerName,
+                        @OwnerEmail,
+                        @TechnicalSpecialistName,
+                        @TechnicalSpecialistEmail);
                     SELECT last_insert_rowid();
                 ";
 
@@ -71,6 +95,10 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@IsTestProductionCombined", system.IsTestProductionCombined));
                 command.Parameters.Add(new SQLiteParameter("@CuratorName", system.CuratorName ?? (object)DBNull.Value));
                 command.Parameters.Add(new SQLiteParameter("@CuratorEmail", system.CuratorEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerName", system.OwnerName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerEmail", system.OwnerEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistName", system.TechnicalSpecialistName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistEmail", system.TechnicalSpecialistEmail ?? (object)DBNull.Value));
 
                 return Convert.ToInt32(command.ExecuteScalar());
             }
@@ -99,6 +127,10 @@ namespace IPWhiteListManager.Data
                             IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
                             CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
                             CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
                             CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
                         });
                     }
@@ -106,6 +138,41 @@ namespace IPWhiteListManager.Data
             }
 
             return systems;
+        }
+
+        public SystemInfo GetSystemById(int systemId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "SELECT * FROM Systems WHERE Id = @Id LIMIT 1";
+                command.Parameters.Add(new SQLiteParameter("@Id", systemId));
+
+                using (var reader = command.ExecuteReader())
+                {
+                    if (reader.Read())
+                    {
+                        return new SystemInfo
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            SystemName = reader["SystemName"].ToString(),
+                            Description = reader["Description"] == DBNull.Value ? null : reader["Description"].ToString(),
+                            IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
+                            CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
+                            CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
+                            CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
+                        };
+                    }
+                }
+            }
+
+            return null;
         }
 
         public SystemInfo FindSystemByName(string systemName)
@@ -130,6 +197,10 @@ namespace IPWhiteListManager.Data
                             IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
                             CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
                             CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
                             CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
                         };
                     }
@@ -139,7 +210,44 @@ namespace IPWhiteListManager.Data
             return null;
         }
 
-        public int AddIPAddress(IPAddressInfo ipAddress)
+        private void EnsureSystemsTableColumns(SQLiteConnection connection)
+        {
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(Systems);";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        existingColumns.Add(reader["name"].ToString());
+                    }
+                }
+            }
+
+            var columnsToEnsure = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "OwnerName", "ALTER TABLE Systems ADD COLUMN OwnerName TEXT;" },
+                { "OwnerEmail", "ALTER TABLE Systems ADD COLUMN OwnerEmail TEXT;" },
+                { "TechnicalSpecialistName", "ALTER TABLE Systems ADD COLUMN TechnicalSpecialistName TEXT;" },
+                { "TechnicalSpecialistEmail", "ALTER TABLE Systems ADD COLUMN TechnicalSpecialistEmail TEXT;" }
+            };
+
+            foreach (var column in columnsToEnsure)
+            {
+                if (!existingColumns.Contains(column.Key))
+                {
+                    using (var alterCommand = connection.CreateCommand())
+                    {
+                        alterCommand.CommandText = column.Value;
+                        alterCommand.ExecuteNonQuery();
+                    }
+                }
+            }
+        }
+
+        public int AddIPAddress(IPAddressInfo ipAddress, DateTime? registrationDateOverride = null)
         {
             using (var connection = new SQLiteConnection(_connectionString))
             {
@@ -158,7 +266,70 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@IsRegisteredInNamen", ipAddress.IsRegisteredInNamen));
                 command.Parameters.Add(new SQLiteParameter("@NamenRequestNumber", ipAddress.NamenRequestNumber ?? (object)DBNull.Value));
 
-                return Convert.ToInt32(command.ExecuteScalar());
+                var ipId = Convert.ToInt32(command.ExecuteScalar());
+
+                if (registrationDateOverride.HasValue)
+                {
+                    var updateRegistration = connection.CreateCommand();
+                    updateRegistration.CommandText = "UPDATE IPAddresses SET RegistrationDate = @RegistrationDate WHERE Id = @Id";
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@RegistrationDate", registrationDateOverride.Value));
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@Id", ipId));
+                    updateRegistration.ExecuteNonQuery();
+                }
+
+                if (ipAddress.Environment == EnvironmentType.Both)
+                {
+                    var updateSystem = connection.CreateCommand();
+                    updateSystem.CommandText = "UPDATE Systems SET IsTestProductionCombined = 1 WHERE Id = @SystemId";
+                    updateSystem.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                    updateSystem.ExecuteNonQuery();
+                }
+
+                return ipId;
+            }
+        }
+
+        public void UpdateIPAddress(IPAddressInfo ipAddress, DateTime? registrationDateOverride = null)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE IPAddresses
+                    SET SystemId = @SystemId,
+                        IPAddress = @IPAddress,
+                        Environment = @Environment,
+                        IsRegisteredInNamen = @IsRegisteredInNamen,
+                        NamenRequestNumber = @NamenRequestNumber
+                    WHERE Id = @Id";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                command.Parameters.Add(new SQLiteParameter("@IPAddress", ipAddress.IPAddress));
+                command.Parameters.Add(new SQLiteParameter("@Environment", ipAddress.Environment.ToString()));
+                command.Parameters.Add(new SQLiteParameter("@IsRegisteredInNamen", ipAddress.IsRegisteredInNamen));
+                command.Parameters.Add(new SQLiteParameter("@NamenRequestNumber", ipAddress.NamenRequestNumber ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@Id", ipAddress.Id));
+
+                command.ExecuteNonQuery();
+
+                if (registrationDateOverride.HasValue)
+                {
+                    var updateRegistration = connection.CreateCommand();
+                    updateRegistration.CommandText = "UPDATE IPAddresses SET RegistrationDate = @RegistrationDate WHERE Id = @Id";
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@RegistrationDate", registrationDateOverride.Value));
+                    updateRegistration.Parameters.Add(new SQLiteParameter("@Id", ipAddress.Id));
+                    updateRegistration.ExecuteNonQuery();
+                }
+
+                if (ipAddress.Environment == EnvironmentType.Both)
+                {
+                    var updateSystem = connection.CreateCommand();
+                    updateSystem.CommandText = "UPDATE Systems SET IsTestProductionCombined = 1 WHERE Id = @SystemId";
+                    updateSystem.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                    updateSystem.ExecuteNonQuery();
+                }
             }
         }
 
@@ -247,8 +418,8 @@ namespace IPWhiteListManager.Data
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
-                    UPDATE IPAddresses 
-                    SET IsRegisteredInNamen = @IsRegistered, 
+                    UPDATE IPAddresses
+                    SET IsRegisteredInNamen = @IsRegistered,
                         NamenRequestNumber = @RequestNumber
                     WHERE Id = @Id";
 
@@ -256,6 +427,20 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@RequestNumber", requestNumber ?? (object)DBNull.Value));
                 command.Parameters.Add(new SQLiteParameter("@Id", ipAddressId));
                 command.ExecuteNonQuery();
+            }
+        }
+
+        public bool DeleteIPAddress(int ipAddressId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "DELETE FROM IPAddresses WHERE Id = @Id";
+                command.Parameters.Add(new SQLiteParameter("@Id", ipAddressId));
+
+                return command.ExecuteNonQuery() > 0;
             }
         }
 
@@ -276,6 +461,96 @@ namespace IPWhiteListManager.Data
                 ";
 
                 command.Parameters.Add(new SQLiteParameter("@IPAddress", ipAddress.Trim()));
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        ipAddresses.Add(new IPAddressInfo
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            SystemId = Convert.ToInt32(reader["SystemId"]),
+                            IPAddress = reader["IPAddress"].ToString(),
+                            Environment = (EnvironmentType)Enum.Parse(typeof(EnvironmentType), reader["Environment"].ToString()),
+                            IsRegisteredInNamen = Convert.ToBoolean(reader["IsRegisteredInNamen"]),
+                            NamenRequestNumber = reader["NamenRequestNumber"] == DBNull.Value ? null : reader["NamenRequestNumber"].ToString(),
+                            RegistrationDate = Convert.ToDateTime(reader["RegistrationDate"]),
+                            SystemName = reader["SystemName"].ToString()
+                        });
+                    }
+                }
+            }
+
+            return ipAddresses;
+        }
+
+        public void UpdateSystem(SystemInfo system)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    UPDATE Systems
+                    SET SystemName = @SystemName,
+                        Description = @Description,
+                        IsTestProductionCombined = @IsTestProductionCombined,
+                        CuratorName = @CuratorName,
+                        CuratorEmail = @CuratorEmail,
+                        OwnerName = @OwnerName,
+                        OwnerEmail = @OwnerEmail,
+                        TechnicalSpecialistName = @TechnicalSpecialistName,
+                        TechnicalSpecialistEmail = @TechnicalSpecialistEmail
+                    WHERE Id = @Id";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemName", system.SystemName));
+                command.Parameters.Add(new SQLiteParameter("@Description", system.Description ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@IsTestProductionCombined", system.IsTestProductionCombined));
+                command.Parameters.Add(new SQLiteParameter("@CuratorName", system.CuratorName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@CuratorEmail", system.CuratorEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerName", system.OwnerName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerEmail", system.OwnerEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistName", system.TechnicalSpecialistName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistEmail", system.TechnicalSpecialistEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@Id", system.Id));
+
+                command.ExecuteNonQuery();
+            }
+        }
+
+        public bool DeleteSystem(int systemId)
+        {
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = "DELETE FROM Systems WHERE Id = @Id";
+                command.Parameters.Add(new SQLiteParameter("@Id", systemId));
+
+                return command.ExecuteNonQuery() > 0;
+            }
+        }
+
+        public List<IPAddressInfo> GetIPAddressesForSystem(int systemId)
+        {
+            var ipAddresses = new List<IPAddressInfo>();
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.*, s.SystemName
+                    FROM IPAddresses i
+                    JOIN Systems s ON i.SystemId = s.Id
+                    WHERE i.SystemId = @SystemId
+                    ORDER BY i.Environment, i.IPAddress
+                ";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemId", systemId));
 
                 using (var reader = command.ExecuteReader())
                 {
