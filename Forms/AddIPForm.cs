@@ -586,6 +586,20 @@ namespace IPWhiteListManager.Forms
                 infoLines.Add(curatorInfo);
             }
 
+            var ipAddresses = _dbManager.GetIPAddressesForSystem(system.Id);
+
+            if (ipAddresses.Count == 0)
+            {
+                infoLines.Add("IP-адреса: отсутствуют");
+            }
+            else
+            {
+                foreach (var summary in BuildEnvironmentSummary(ipAddresses))
+                {
+                    infoLines.Add(summary);
+                }
+            }
+
             infoLines.Add($"Объединенные контуры: {(system.IsTestProductionCombined ? "Да" : "Нет")}");
 
             txtSystemDetails.Text = string.Join(Environment.NewLine, infoLines);
@@ -672,6 +686,39 @@ namespace IPWhiteListManager.Forms
             }
 
             UpdateSystemDetails();
+        }
+
+        private IEnumerable<string> BuildEnvironmentSummary(IEnumerable<IPAddressInfo> ipAddresses)
+        {
+            var grouped = ipAddresses
+                .GroupBy(ip => ip.Environment)
+                .OrderBy(group => group.Key);
+
+            foreach (var group in grouped)
+            {
+                var label = GetEnvironmentDisplayName(group.Key);
+                var addresses = group
+                    .Select(ip => ip.IPAddress)
+                    .OrderBy(address => address)
+                    .ToList();
+
+                yield return $"{label}: {addresses.Count} IP ({string.Join(", ", addresses)})";
+            }
+        }
+
+        private static string GetEnvironmentDisplayName(EnvironmentType environment)
+        {
+            switch (environment)
+            {
+                case EnvironmentType.Test:
+                    return "Тестовый контур";
+                case EnvironmentType.Production:
+                    return "Промышленный контур";
+                case EnvironmentType.Both:
+                    return "Общий контур";
+                default:
+                    return environment.ToString();
+            }
         }
     }
 }

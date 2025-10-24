@@ -233,6 +233,11 @@ namespace IPWhiteListManager.Forms
                     techInfo.Add($"Описание: {system.Description}");
 
                 techInfo.Add($"Объединенные контуры: {(system.IsTestProductionCombined ? "Да" : "Нет")}");
+
+                foreach (var summary in BuildEnvironmentSummary(system))
+                {
+                    techInfo.Add(summary);
+                }
             }
 
             techInfo.Add($"Статус в namen: {(_selectedIP.IsRegisteredInNamen ? "✓ Зарегистрирован" : "✗ Не зарегистрирован")}");
@@ -443,6 +448,50 @@ namespace IPWhiteListManager.Forms
             lblOwnerEmailValue.Text = string.IsNullOrWhiteSpace(system?.OwnerEmail) ? "-" : system.OwnerEmail;
             lblTechNameValue.Text = string.IsNullOrWhiteSpace(system?.TechnicalSpecialistName) ? "-" : system.TechnicalSpecialistName;
             lblTechEmailValue.Text = string.IsNullOrWhiteSpace(system?.TechnicalSpecialistEmail) ? "-" : system.TechnicalSpecialistEmail;
+        }
+
+        private IEnumerable<string> BuildEnvironmentSummary(SystemInfo system)
+        {
+            if (system == null)
+            {
+                yield break;
+            }
+
+            var ipAddresses = _dbManager.GetIPAddressesForSystem(system.Id);
+
+            if (ipAddresses.Count == 0)
+            {
+                yield return "IP-адреса по системе: отсутствуют";
+                yield break;
+            }
+
+            foreach (var group in ipAddresses
+                         .GroupBy(ip => ip.Environment)
+                         .OrderBy(group => group.Key))
+            {
+                var label = GetEnvironmentDisplayName(group.Key);
+                var addresses = group
+                    .Select(ip => ip.IPAddress)
+                    .OrderBy(address => address)
+                    .ToList();
+
+                yield return $"{label}: {addresses.Count} IP ({string.Join(", ", addresses)})";
+            }
+        }
+
+        private static string GetEnvironmentDisplayName(EnvironmentType environment)
+        {
+            switch (environment)
+            {
+                case EnvironmentType.Test:
+                    return "Тестовый контур";
+                case EnvironmentType.Production:
+                    return "Промышленный контур";
+                case EnvironmentType.Both:
+                    return "Общий контур";
+                default:
+                    return environment.ToString();
+            }
         }
 
         private void SelectIpRow(int ipId)

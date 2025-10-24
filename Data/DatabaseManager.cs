@@ -514,5 +514,46 @@ namespace IPWhiteListManager.Data
                 return command.ExecuteNonQuery() > 0;
             }
         }
+
+        public List<IPAddressInfo> GetIPAddressesForSystem(int systemId)
+        {
+            var ipAddresses = new List<IPAddressInfo>();
+
+            using (var connection = new SQLiteConnection(_connectionString))
+            {
+                connection.Open();
+
+                var command = connection.CreateCommand();
+                command.CommandText = @"
+                    SELECT i.*, s.SystemName
+                    FROM IPAddresses i
+                    JOIN Systems s ON i.SystemId = s.Id
+                    WHERE i.SystemId = @SystemId
+                    ORDER BY i.Environment, i.IPAddress
+                ";
+
+                command.Parameters.Add(new SQLiteParameter("@SystemId", systemId));
+
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        ipAddresses.Add(new IPAddressInfo
+                        {
+                            Id = Convert.ToInt32(reader["Id"]),
+                            SystemId = Convert.ToInt32(reader["SystemId"]),
+                            IPAddress = reader["IPAddress"].ToString(),
+                            Environment = (EnvironmentType)Enum.Parse(typeof(EnvironmentType), reader["Environment"].ToString()),
+                            IsRegisteredInNamen = Convert.ToBoolean(reader["IsRegisteredInNamen"]),
+                            NamenRequestNumber = reader["NamenRequestNumber"] == DBNull.Value ? null : reader["NamenRequestNumber"].ToString(),
+                            RegistrationDate = Convert.ToDateTime(reader["RegistrationDate"]),
+                            SystemName = reader["SystemName"].ToString()
+                        });
+                    }
+                }
+            }
+
+            return ipAddresses;
+        }
     }
 }
