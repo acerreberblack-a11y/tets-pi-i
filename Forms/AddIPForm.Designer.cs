@@ -24,6 +24,7 @@
             this.lblEnvironment = new System.Windows.Forms.Label();
             this.chkProduction = new System.Windows.Forms.CheckBox();
             this.chkTest = new System.Windows.Forms.CheckBox();
+            this.chkCombined = new System.Windows.Forms.CheckBox();
             this.lblRequestNumber = new System.Windows.Forms.Label();
             this.txtRequestNumber = new System.Windows.Forms.TextBox();
             this.chkRegisterNamen = new System.Windows.Forms.CheckBox();
@@ -85,7 +86,7 @@
             this.chkProduction.UseVisualStyleBackColor = true;
             // 
             // chkTest
-            // 
+            //
             this.chkTest.AutoSize = true;
             this.chkTest.Location = new System.Drawing.Point(210, 100);
             this.chkTest.Name = "chkTest";
@@ -93,22 +94,32 @@
             this.chkTest.TabIndex = 6;
             this.chkTest.Text = "Тестовый";
             this.chkTest.UseVisualStyleBackColor = true;
-            // 
+            //
+            // chkCombined
+            //
+            this.chkCombined.AutoSize = true;
+            this.chkCombined.Location = new System.Drawing.Point(100, 130);
+            this.chkCombined.Name = "chkCombined";
+            this.chkCombined.Size = new System.Drawing.Size(154, 17);
+            this.chkCombined.TabIndex = 7;
+            this.chkCombined.Text = "Объединить тест и прод";
+            this.chkCombined.UseVisualStyleBackColor = true;
+            //
             // lblRequestNumber
-            // 
+            //
             this.lblRequestNumber.AutoSize = true;
-            this.lblRequestNumber.Location = new System.Drawing.Point(20, 140);
+            this.lblRequestNumber.Location = new System.Drawing.Point(20, 160);
             this.lblRequestNumber.Name = "lblRequestNumber";
             this.lblRequestNumber.Size = new System.Drawing.Size(104, 13);
-            this.lblRequestNumber.TabIndex = 7;
+            this.lblRequestNumber.TabIndex = 8;
             this.lblRequestNumber.Text = "№ заявки в namen:";
             // 
             // txtRequestNumber
             // 
-            this.txtRequestNumber.Location = new System.Drawing.Point(140, 137);
+            this.txtRequestNumber.Location = new System.Drawing.Point(140, 157);
             this.txtRequestNumber.Name = "txtRequestNumber";
             this.txtRequestNumber.Size = new System.Drawing.Size(200, 20);
-            this.txtRequestNumber.TabIndex = 8;
+            this.txtRequestNumber.TabIndex = 9;
             this.txtRequestNumber.Text = "NAMEN-20240115-1234";
             // 
             // chkRegisterNamen
@@ -116,28 +127,28 @@
             this.chkRegisterNamen.AutoSize = true;
             this.chkRegisterNamen.Checked = true;
             this.chkRegisterNamen.CheckState = System.Windows.Forms.CheckState.Checked;
-            this.chkRegisterNamen.Location = new System.Drawing.Point(20, 180);
+            this.chkRegisterNamen.Location = new System.Drawing.Point(20, 200);
             this.chkRegisterNamen.Name = "chkRegisterNamen";
             this.chkRegisterNamen.Size = new System.Drawing.Size(154, 17);
-            this.chkRegisterNamen.TabIndex = 9;
+            this.chkRegisterNamen.TabIndex = 10;
             this.chkRegisterNamen.Text = "Зарегистрировать в namen";
             this.chkRegisterNamen.UseVisualStyleBackColor = true;
             // 
             // btnSave
             // 
-            this.btnSave.Location = new System.Drawing.Point(100, 220);
+            this.btnSave.Location = new System.Drawing.Point(100, 240);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(100, 30);
-            this.btnSave.TabIndex = 10;
+            this.btnSave.TabIndex = 11;
             this.btnSave.Text = "Сохранить";
             this.btnSave.UseVisualStyleBackColor = true;
             // 
             // btnCancel
             // 
-            this.btnCancel.Location = new System.Drawing.Point(210, 220);
+            this.btnCancel.Location = new System.Drawing.Point(210, 240);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(100, 30);
-            this.btnCancel.TabIndex = 11;
+            this.btnCancel.TabIndex = 12;
             this.btnCancel.Text = "Отмена";
             this.btnCancel.UseVisualStyleBackColor = true;
             // 
@@ -145,12 +156,13 @@
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(450, 350);
+            this.ClientSize = new System.Drawing.Size(450, 330);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.chkRegisterNamen);
             this.Controls.Add(this.txtRequestNumber);
             this.Controls.Add(this.lblRequestNumber);
+            this.Controls.Add(this.chkCombined);
             this.Controls.Add(this.chkTest);
             this.Controls.Add(this.chkProduction);
             this.Controls.Add(this.lblEnvironment);
@@ -174,6 +186,7 @@
         private System.Windows.Forms.Label lblEnvironment;
         private System.Windows.Forms.CheckBox chkProduction;
         private System.Windows.Forms.CheckBox chkTest;
+        private System.Windows.Forms.CheckBox chkCombined;
         private System.Windows.Forms.Label lblRequestNumber;
         private System.Windows.Forms.TextBox txtRequestNumber;
         private System.Windows.Forms.CheckBox chkRegisterNamen;

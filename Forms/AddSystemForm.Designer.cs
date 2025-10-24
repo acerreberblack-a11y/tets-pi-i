@@ -21,7 +21,6 @@ namespace IPWhiteListManager.Forms
             this.txtSystemName = new System.Windows.Forms.TextBox();
             this.lblDescription = new System.Windows.Forms.Label();
             this.txtDescription = new System.Windows.Forms.TextBox();
-            this.chkCombined = new System.Windows.Forms.CheckBox();
             this.grpOwner = new System.Windows.Forms.GroupBox();
             this.txtOwnerEmail = new System.Windows.Forms.TextBox();
             this.lblOwnerEmail = new System.Windows.Forms.Label();
@@ -72,23 +71,13 @@ namespace IPWhiteListManager.Forms
             this.txtDescription.Size = new System.Drawing.Size(420, 60);
             this.txtDescription.TabIndex = 3;
             // 
-            // chkCombined
-            // 
-            this.chkCombined.AutoSize = true;
-            this.chkCombined.Location = new System.Drawing.Point(23, 151);
-            this.chkCombined.Name = "chkCombined";
-            this.chkCombined.Size = new System.Drawing.Size(205, 17);
-            this.chkCombined.TabIndex = 4;
-            this.chkCombined.Text = "Тест и прод объединены (Both)";
-            this.chkCombined.UseVisualStyleBackColor = true;
-            // 
             // grpOwner
-            // 
+            //
             this.grpOwner.Controls.Add(this.txtOwnerEmail);
             this.grpOwner.Controls.Add(this.lblOwnerEmail);
             this.grpOwner.Controls.Add(this.txtOwnerName);
             this.grpOwner.Controls.Add(this.lblOwnerName);
-            this.grpOwner.Location = new System.Drawing.Point(20, 180);
+            this.grpOwner.Location = new System.Drawing.Point(20, 160);
             this.grpOwner.Name = "grpOwner";
             this.grpOwner.Size = new System.Drawing.Size(420, 90);
             this.grpOwner.TabIndex = 5;
@@ -133,7 +122,7 @@ namespace IPWhiteListManager.Forms
             this.grpTechnical.Controls.Add(this.lblTechnicalEmail);
             this.grpTechnical.Controls.Add(this.txtTechnicalName);
             this.grpTechnical.Controls.Add(this.lblTechnicalName);
-            this.grpTechnical.Location = new System.Drawing.Point(20, 280);
+            this.grpTechnical.Location = new System.Drawing.Point(20, 260);
             this.grpTechnical.Name = "grpTechnical";
             this.grpTechnical.Size = new System.Drawing.Size(420, 90);
             this.grpTechnical.TabIndex = 6;
@@ -176,7 +165,7 @@ namespace IPWhiteListManager.Forms
             // 
             this.btnSave.BackColor = System.Drawing.Color.SteelBlue;
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(254, 385);
+            this.btnSave.Location = new System.Drawing.Point(254, 365);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(90, 27);
             this.btnSave.TabIndex = 7;
@@ -185,7 +174,7 @@ namespace IPWhiteListManager.Forms
             // 
             // btnCancel
             // 
-            this.btnCancel.Location = new System.Drawing.Point(350, 385);
+            this.btnCancel.Location = new System.Drawing.Point(350, 365);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(90, 27);
             this.btnCancel.TabIndex = 8;
@@ -196,12 +185,11 @@ namespace IPWhiteListManager.Forms
             // 
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(464, 431);
+            this.ClientSize = new System.Drawing.Size(464, 411);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
             this.Controls.Add(this.grpTechnical);
             this.Controls.Add(this.grpOwner);
-            this.Controls.Add(this.chkCombined);
             this.Controls.Add(this.txtDescription);
             this.Controls.Add(this.lblDescription);
             this.Controls.Add(this.txtSystemName);
@@ -230,7 +218,6 @@ namespace IPWhiteListManager.Forms
         private System.Windows.Forms.TextBox txtSystemName;
         private System.Windows.Forms.Label lblDescription;
         private System.Windows.Forms.TextBox txtDescription;
-        private System.Windows.Forms.CheckBox chkCombined;
         private System.Windows.Forms.GroupBox grpOwner;
         private System.Windows.Forms.TextBox txtOwnerEmail;
         private System.Windows.Forms.Label lblOwnerEmail;

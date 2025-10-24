@@ -231,7 +231,17 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@IsRegisteredInNamen", ipAddress.IsRegisteredInNamen));
                 command.Parameters.Add(new SQLiteParameter("@NamenRequestNumber", ipAddress.NamenRequestNumber ?? (object)DBNull.Value));
 
-                return Convert.ToInt32(command.ExecuteScalar());
+                var ipId = Convert.ToInt32(command.ExecuteScalar());
+
+                if (ipAddress.Environment == EnvironmentType.Both)
+                {
+                    var updateSystem = connection.CreateCommand();
+                    updateSystem.CommandText = "UPDATE Systems SET IsTestProductionCombined = 1 WHERE Id = @SystemId";
+                    updateSystem.Parameters.Add(new SQLiteParameter("@SystemId", ipAddress.SystemId));
+                    updateSystem.ExecuteNonQuery();
+                }
+
+                return ipId;
             }
         }
 

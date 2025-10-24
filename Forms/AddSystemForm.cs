@@ -48,7 +48,6 @@ namespace IPWhiteListManager.Forms
             {
                 SystemName = txtSystemName.Text.Trim(),
                 Description = string.IsNullOrWhiteSpace(txtDescription.Text) ? null : txtDescription.Text.Trim(),
-                IsTestProductionCombined = chkCombined.Checked,
                 OwnerName = txtOwnerName.Text.Trim(),
                 OwnerEmail = txtOwnerEmail.Text.Trim(),
                 TechnicalSpecialistName = txtTechnicalName.Text.Trim(),

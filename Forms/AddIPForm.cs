@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using System.Windows.Forms;
 using IPWhiteListManager.Data;
@@ -10,6 +10,8 @@ namespace IPWhiteListManager.Forms
     {
         private readonly DatabaseManager _dbManager;
 
+        private bool _isUpdatingCombinedState;
+
         public AddIPForm(DatabaseManager dbManager)
         {
             _dbManager = dbManager;
@@ -20,6 +22,9 @@ namespace IPWhiteListManager.Forms
             this.btnCancel.Click += BtnCancel_Click;
             this.txtIPAddress.TextChanged += TxtIPAddress_TextChanged;
             this.txtRequestNumber.TextChanged += TxtRequestNumber_TextChanged;
+            this.chkCombined.CheckedChanged += ChkCombined_CheckedChanged;
+            this.chkProduction.CheckedChanged += EnvironmentCheckBoxChanged;
+            this.chkTest.CheckedChanged += EnvironmentCheckBoxChanged;
 
             LoadSystems();
         }
@@ -77,18 +82,24 @@ namespace IPWhiteListManager.Forms
                         chkProduction.Enabled = false;
                         chkTest.Checked = false;
                         chkTest.Enabled = true;
+                        SetCombinedState(false, false);
+                        chkCombined.Enabled = false;
                         break;
                     case EnvironmentType.Test:
                         chkProduction.Checked = false;
                         chkProduction.Enabled = true;
                         chkTest.Checked = true;
                         chkTest.Enabled = false;
+                        SetCombinedState(false, false);
+                        chkCombined.Enabled = false;
                         break;
                     case EnvironmentType.Both:
                         chkProduction.Checked = true;
                         chkProduction.Enabled = false;
                         chkTest.Checked = true;
                         chkTest.Enabled = false;
+                        SetCombinedState(true, false);
+                        chkCombined.Enabled = false;
                         break;
                 }
 
@@ -103,6 +114,8 @@ namespace IPWhiteListManager.Forms
                 cmbSystem.Enabled = true;
                 chkProduction.Enabled = true;
                 chkTest.Enabled = true;
+                chkCombined.Enabled = true;
+                SetCombinedState(false, false);
             }
         }
 
@@ -204,6 +217,68 @@ namespace IPWhiteListManager.Forms
             }
 
             return -1;
+        }
+
+        private void ChkCombined_CheckedChanged(object sender, EventArgs e)
+        {
+            if (_isUpdatingCombinedState)
+            {
+                return;
+            }
+
+            _isUpdatingCombinedState = true;
+            try
+            {
+                if (chkCombined.Checked)
+                {
+                    chkProduction.Checked = true;
+                    chkTest.Checked = true;
+                    chkProduction.Enabled = false;
+                    chkTest.Enabled = false;
+                }
+                else
+                {
+                    chkProduction.Enabled = true;
+                    chkTest.Enabled = true;
+                }
+            }
+            finally
+            {
+                _isUpdatingCombinedState = false;
+            }
+        }
+
+        private void EnvironmentCheckBoxChanged(object sender, EventArgs e)
+        {
+            if (_isUpdatingCombinedState)
+            {
+                return;
+            }
+
+            var shouldCombine = chkProduction.Checked && chkTest.Checked;
+            SetCombinedState(shouldCombine, false);
+        }
+
+        private void SetCombinedState(bool isCombined, bool adjustEnabled)
+        {
+            _isUpdatingCombinedState = true;
+            try
+            {
+                if (chkCombined.Checked != isCombined)
+                {
+                    chkCombined.Checked = isCombined;
+                }
+
+                if (adjustEnabled)
+                {
+                    chkProduction.Enabled = !isCombined;
+                    chkTest.Enabled = !isCombined;
+                }
+            }
+            finally
+            {
+                _isUpdatingCombinedState = false;
+            }
         }
 
         private EnvironmentType GetEnvironmentType()
