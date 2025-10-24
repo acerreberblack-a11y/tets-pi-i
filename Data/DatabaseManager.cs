@@ -31,6 +31,10 @@ namespace IPWhiteListManager.Data
                         IsTestProductionCombined BOOLEAN DEFAULT 0,
                         CuratorName TEXT,
                         CuratorEmail TEXT,
+                        OwnerName TEXT,
+                        OwnerEmail TEXT,
+                        TechnicalSpecialistName TEXT,
+                        TechnicalSpecialistEmail TEXT,
                         CreatedDate DATETIME DEFAULT CURRENT_TIMESTAMP
                     );
 
@@ -50,6 +54,8 @@ namespace IPWhiteListManager.Data
                     CREATE INDEX IF NOT EXISTS IX_Systems_SystemName ON Systems(SystemName);
                 ";
                 command.ExecuteNonQuery();
+
+                EnsureSystemsTableColumns(connection);
             }
         }
 
@@ -61,8 +67,26 @@ namespace IPWhiteListManager.Data
 
                 var command = connection.CreateCommand();
                 command.CommandText = @"
-                    INSERT INTO Systems (SystemName, Description, IsTestProductionCombined, CuratorName, CuratorEmail)
-                    VALUES (@SystemName, @Description, @IsTestProductionCombined, @CuratorName, @CuratorEmail);
+                    INSERT INTO Systems (
+                        SystemName,
+                        Description,
+                        IsTestProductionCombined,
+                        CuratorName,
+                        CuratorEmail,
+                        OwnerName,
+                        OwnerEmail,
+                        TechnicalSpecialistName,
+                        TechnicalSpecialistEmail)
+                    VALUES (
+                        @SystemName,
+                        @Description,
+                        @IsTestProductionCombined,
+                        @CuratorName,
+                        @CuratorEmail,
+                        @OwnerName,
+                        @OwnerEmail,
+                        @TechnicalSpecialistName,
+                        @TechnicalSpecialistEmail);
                     SELECT last_insert_rowid();
                 ";
 
@@ -71,6 +95,10 @@ namespace IPWhiteListManager.Data
                 command.Parameters.Add(new SQLiteParameter("@IsTestProductionCombined", system.IsTestProductionCombined));
                 command.Parameters.Add(new SQLiteParameter("@CuratorName", system.CuratorName ?? (object)DBNull.Value));
                 command.Parameters.Add(new SQLiteParameter("@CuratorEmail", system.CuratorEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerName", system.OwnerName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@OwnerEmail", system.OwnerEmail ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistName", system.TechnicalSpecialistName ?? (object)DBNull.Value));
+                command.Parameters.Add(new SQLiteParameter("@TechnicalSpecialistEmail", system.TechnicalSpecialistEmail ?? (object)DBNull.Value));
 
                 return Convert.ToInt32(command.ExecuteScalar());
             }
@@ -99,6 +127,10 @@ namespace IPWhiteListManager.Data
                             IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
                             CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
                             CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
                             CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
                         });
                     }
@@ -130,6 +162,10 @@ namespace IPWhiteListManager.Data
                             IsTestProductionCombined = Convert.ToBoolean(reader["IsTestProductionCombined"]),
                             CuratorName = reader["CuratorName"] == DBNull.Value ? null : reader["CuratorName"].ToString(),
                             CuratorEmail = reader["CuratorEmail"] == DBNull.Value ? null : reader["CuratorEmail"].ToString(),
+                            OwnerName = reader["OwnerName"] == DBNull.Value ? null : reader["OwnerName"].ToString(),
+                            OwnerEmail = reader["OwnerEmail"] == DBNull.Value ? null : reader["OwnerEmail"].ToString(),
+                            TechnicalSpecialistName = reader["TechnicalSpecialistName"] == DBNull.Value ? null : reader["TechnicalSpecialistName"].ToString(),
+                            TechnicalSpecialistEmail = reader["TechnicalSpecialistEmail"] == DBNull.Value ? null : reader["TechnicalSpecialistEmail"].ToString(),
                             CreatedDate = Convert.ToDateTime(reader["CreatedDate"])
                         };
                     }
@@ -137,6 +173,43 @@ namespace IPWhiteListManager.Data
             }
 
             return null;
+        }
+
+        private void EnsureSystemsTableColumns(SQLiteConnection connection)
+        {
+            var existingColumns = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            using (var command = connection.CreateCommand())
+            {
+                command.CommandText = "PRAGMA table_info(Systems);";
+                using (var reader = command.ExecuteReader())
+                {
+                    while (reader.Read())
+                    {
+                        existingColumns.Add(reader["name"].ToString());
+                    }
+                }
+            }
+
+            var columnsToEnsure = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+            {
+                { "OwnerName", "ALTER TABLE Systems ADD COLUMN OwnerName TEXT;" },
+                { "OwnerEmail", "ALTER TABLE Systems ADD COLUMN OwnerEmail TEXT;" },
+                { "TechnicalSpecialistName", "ALTER TABLE Systems ADD COLUMN TechnicalSpecialistName TEXT;" },
+                { "TechnicalSpecialistEmail", "ALTER TABLE Systems ADD COLUMN TechnicalSpecialistEmail TEXT;" }
+            };
+
+            foreach (var column in columnsToEnsure)
+            {
+                if (!existingColumns.Contains(column.Key))
+                {
+                    using (var alterCommand = connection.CreateCommand())
+                    {
+                        alterCommand.CommandText = column.Value;
+                        alterCommand.ExecuteNonQuery();
+                    }
+                }
+            }
         }
 
         public int AddIPAddress(IPAddressInfo ipAddress)

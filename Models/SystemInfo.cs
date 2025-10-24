@@ -10,6 +10,10 @@ namespace IPWhiteListManager.Models
         public bool IsTestProductionCombined { get; set; }
         public string CuratorName { get; set; }
         public string CuratorEmail { get; set; }
+        public string OwnerName { get; set; }
+        public string OwnerEmail { get; set; }
+        public string TechnicalSpecialistName { get; set; }
+        public string TechnicalSpecialistEmail { get; set; }
         public DateTime CreatedDate { get; set; }
     }
 }

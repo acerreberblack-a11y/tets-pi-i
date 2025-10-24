@@ -137,7 +137,7 @@ namespace IPWhiteListManager.Forms
             var systemId = GetOrCreateSystem(cmbSystem.Text.Trim());
             if (systemId == -1)
             {
-                MessageBox.Show("Ошибка при создании системы", "Ошибка",
+                MessageBox.Show("Не удалось создать или выбрать ИС. Повторите попытку после добавления системы.", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
@@ -188,17 +188,22 @@ namespace IPWhiteListManager.Forms
                 return existingSystem.Id;
             }
 
-            // Создание новой системы
-            var newSystem = new SystemInfo
+            using (var addSystemForm = new AddSystemForm(_dbManager, systemName))
             {
-                SystemName = systemName,
-                Description = "Автоматически создана при добавлении IP",
-                IsTestProductionCombined = chkProduction.Checked && chkTest.Checked,
-                CuratorName = "",
-                CuratorEmail = ""
-            };
+                if (addSystemForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    LoadSystems();
 
-            return _dbManager.AddSystem(newSystem);
+                    var createdSystem = addSystemForm.CreatedSystem ?? _dbManager.FindSystemByName(systemName);
+                    if (createdSystem != null)
+                    {
+                        cmbSystem.SelectedItem = createdSystem.SystemName;
+                        return createdSystem.Id;
+                    }
+                }
+            }
+
+            return -1;
         }
 
         private EnvironmentType GetEnvironmentType()

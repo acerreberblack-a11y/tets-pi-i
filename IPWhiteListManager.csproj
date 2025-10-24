@@ -98,6 +98,12 @@
     <Compile Include="Forms\AddIPForm.Designer.cs">
       <DependentUpon>AddIPForm.cs</DependentUpon>
     </Compile>
+    <Compile Include="Forms\AddSystemForm.cs">
+      <SubType>Form</SubType>
+    </Compile>
+    <Compile Include="Forms\AddSystemForm.Designer.cs">
+      <DependentUpon>AddSystemForm.cs</DependentUpon>
+    </Compile>
     <Compile Include="Forms\MainForm.cs">
       <SubType>Form</SubType>
     </Compile>
@@ -112,6 +118,9 @@
     <Compile Include="Services\NamenService.cs" />
     <EmbeddedResource Include="Forms\AddIPForm.resx">
       <DependentUpon>AddIPForm.cs</DependentUpon>
+    </EmbeddedResource>
+    <EmbeddedResource Include="Forms\AddSystemForm.resx">
+      <DependentUpon>AddSystemForm.cs</DependentUpon>
     </EmbeddedResource>
     <EmbeddedResource Include="Forms\MainForm.resx">
       <DependentUpon>MainForm.cs</DependentUpon>

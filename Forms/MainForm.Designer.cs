@@ -23,6 +23,7 @@
             this.cmbEnvironmentFilter = new System.Windows.Forms.ComboBox();
             this.btnSearch = new System.Windows.Forms.Button();
             this.btnAddIP = new System.Windows.Forms.Button();
+            this.btnAddSystem = new System.Windows.Forms.Button();
             this.btnRegisterNamen = new System.Windows.Forms.Button();
             this.txtTechInfo = new System.Windows.Forms.TextBox();
             this.lblSelectedItem = new System.Windows.Forms.Label();
@@ -80,24 +81,33 @@
             // 
             this.btnSearch.BackColor = System.Drawing.Color.SteelBlue;
             this.btnSearch.ForeColor = System.Drawing.Color.White;
-            this.btnSearch.Location = new System.Drawing.Point(797, 9);
+            this.btnSearch.Location = new System.Drawing.Point(706, 9);
             this.btnSearch.Name = "btnSearch";
             this.btnSearch.Size = new System.Drawing.Size(80, 25);
             this.btnSearch.TabIndex = 4;
             this.btnSearch.Text = "Поиск";
             this.btnSearch.UseVisualStyleBackColor = false;
-            // 
+            //
             // btnAddIP
-            // 
-            this.btnAddIP.Location = new System.Drawing.Point(887, 9);
+            //
+            this.btnAddIP.Location = new System.Drawing.Point(897, 9);
             this.btnAddIP.Name = "btnAddIP";
-            this.btnAddIP.Size = new System.Drawing.Size(100, 25);
+            this.btnAddIP.Size = new System.Drawing.Size(90, 25);
             this.btnAddIP.TabIndex = 5;
             this.btnAddIP.Text = "Добавить IP";
             this.btnAddIP.UseVisualStyleBackColor = true;
-            // 
+            //
+            // btnAddSystem
+            //
+            this.btnAddSystem.Location = new System.Drawing.Point(797, 9);
+            this.btnAddSystem.Name = "btnAddSystem";
+            this.btnAddSystem.Size = new System.Drawing.Size(94, 25);
+            this.btnAddSystem.TabIndex = 6;
+            this.btnAddSystem.Text = "Добавить ИС";
+            this.btnAddSystem.UseVisualStyleBackColor = true;
+            //
             // btnRegisterNamen
-            // 
+            //
             this.btnRegisterNamen.BackColor = System.Drawing.Color.LightGreen;
             this.btnRegisterNamen.Enabled = false;
             this.btnRegisterNamen.Location = new System.Drawing.Point(10, 145);
@@ -140,6 +150,7 @@
             this.panelFilters.Controls.Add(this.cmbSystemFilter);
             this.panelFilters.Controls.Add(this.cmbEnvironmentFilter);
             this.panelFilters.Controls.Add(this.btnSearch);
+            this.panelFilters.Controls.Add(this.btnAddSystem);
             this.panelFilters.Controls.Add(this.btnAddIP);
             this.panelFilters.Dock = System.Windows.Forms.DockStyle.Top;
             this.panelFilters.Location = new System.Drawing.Point(0, 0);
@@ -216,6 +227,7 @@
         private System.Windows.Forms.ComboBox cmbEnvironmentFilter;
         private System.Windows.Forms.Button btnSearch;
         private System.Windows.Forms.Button btnAddIP;
+        private System.Windows.Forms.Button btnAddSystem;
         private System.Windows.Forms.Button btnRegisterNamen;
         private System.Windows.Forms.TextBox txtTechInfo;
         private System.Windows.Forms.Label lblSelectedItem;

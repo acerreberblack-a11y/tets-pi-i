@@ -29,6 +29,7 @@ namespace IPWhiteListManager.Forms
             // Подписка на события
             this.btnSearch.Click += BtnSearch_Click;
             this.btnAddIP.Click += BtnAddIP_Click;
+            this.btnAddSystem.Click += BtnAddSystem_Click;
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
@@ -36,15 +37,14 @@ namespace IPWhiteListManager.Forms
 
         private void MainForm_Load(object sender, EventArgs e)
         {
-            LoadData();
             SetupDataGridView();
+            LoadData();
         }
 
         private void LoadData()
         {
             _systems = _dbManager.GetAllSystems();
             var ipAddresses = _dbManager.GetAllIPAddresses();
-            _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
 
             // Заполнение фильтров
             cmbSystemFilter.Items.Clear();
@@ -62,12 +62,17 @@ namespace IPWhiteListManager.Forms
             cmbEnvironmentFilter.Items.Add("Both");
             cmbEnvironmentFilter.SelectedIndex = 0;
 
-            dgvIPAddresses.DataSource = _ipAddresses;
+            BindIpAddresses(ipAddresses);
         }
 
         private void SetupDataGridView()
         {
-            dgvIPAddresses.Columns.Clear();
+            dgvIPAddresses.AutoGenerateColumns = false;
+
+            if (dgvIPAddresses.Columns.Count > 0)
+            {
+                return;
+            }
 
             // Колонка ИС
             var systemColumn = new DataGridViewTextBoxColumn
@@ -97,6 +102,13 @@ namespace IPWhiteListManager.Forms
             };
 
             dgvIPAddresses.Columns.AddRange(new DataGridViewColumn[] { systemColumn, environmentColumn, ipColumn });
+        }
+
+        private void BindIpAddresses(List<IPAddressInfo> ipAddresses)
+        {
+            SetupDataGridView();
+            _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
+            dgvIPAddresses.DataSource = _ipAddresses;
         }
 
         private void BtnSearch_Click(object sender, EventArgs e)
@@ -132,8 +144,7 @@ namespace IPWhiteListManager.Forms
                 filtered = filtered.Where(ip => ip.Environment.ToString() == selectedEnvironment).ToList();
             }
 
-            _ipAddresses = new BindingList<IPAddressInfo>(filtered);
-            dgvIPAddresses.DataSource = _ipAddresses;
+            BindIpAddresses(filtered);
         }
 
         private void DgvIPAddresses_SelectionChanged(object sender, EventArgs e)
@@ -165,7 +176,19 @@ namespace IPWhiteListManager.Forms
                     techInfo.Add($"Куратор: {system.CuratorName}");
 
                 if (!string.IsNullOrEmpty(system.CuratorEmail))
-                    techInfo.Add($"Email: {system.CuratorEmail}");
+                    techInfo.Add($"Email куратора: {system.CuratorEmail}");
+
+                if (!string.IsNullOrEmpty(system.OwnerName))
+                    techInfo.Add($"Владелец системы: {system.OwnerName}");
+
+                if (!string.IsNullOrEmpty(system.OwnerEmail))
+                    techInfo.Add($"Email владельца: {system.OwnerEmail}");
+
+                if (!string.IsNullOrEmpty(system.TechnicalSpecialistName))
+                    techInfo.Add($"Технический специалист: {system.TechnicalSpecialistName}");
+
+                if (!string.IsNullOrEmpty(system.TechnicalSpecialistEmail))
+                    techInfo.Add($"Email специалиста: {system.TechnicalSpecialistEmail}");
 
                 if (!string.IsNullOrEmpty(system.Description))
                     techInfo.Add($"Описание: {system.Description}");
@@ -191,6 +214,18 @@ namespace IPWhiteListManager.Forms
             using (var addForm = new AddIPForm(_dbManager))
             {
                 if (addForm.ShowDialog() == DialogResult.OK)
+                {
+                    LoadData();
+                    ApplyFilters();
+                }
+            }
+        }
+
+        private void BtnAddSystem_Click(object sender, EventArgs e)
+        {
+            using (var addSystemForm = new AddSystemForm(_dbManager))
+            {
+                if (addSystemForm.ShowDialog() == DialogResult.OK)
                 {
                     LoadData();
                     ApplyFilters();
