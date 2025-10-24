@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Linq;
 using System.Windows.Forms;
 using IPWhiteListManager.Data;
@@ -12,6 +13,9 @@ namespace IPWhiteListManager.Forms
         private readonly bool _isEditMode;
         private readonly IPAddressInfo _ipToEdit;
         private readonly SystemInfo _systemForEdit;
+        private readonly AutoCompleteStringCollection _systemAutoComplete = new AutoCompleteStringCollection();
+
+        private SystemInfo _selectedSystem;
 
         private bool _isUpdatingCombinedState;
 
@@ -32,13 +36,26 @@ namespace IPWhiteListManager.Forms
             // Подписка на события
             btnSave.Click += BtnSave_Click;
             btnCancel.Click += BtnCancel_Click;
+            btnEditSystem.Click += BtnEditSystem_Click;
             txtIPAddress.TextChanged += TxtIPAddress_TextChanged;
             txtRequestNumber.TextChanged += TxtRequestNumber_TextChanged;
             chkCombined.CheckedChanged += ChkCombined_CheckedChanged;
             chkProduction.CheckedChanged += EnvironmentCheckBoxChanged;
             chkTest.CheckedChanged += EnvironmentCheckBoxChanged;
+            cmbSystem.SelectedIndexChanged += CmbSystem_SelectedIndexChanged;
+            cmbSystem.TextChanged += CmbSystem_TextChanged;
+            chkRegisterNamen.CheckedChanged += ChkRegisterNamen_CheckedChanged;
+
+            toolTip.SetToolTip(cmbSystem, "Начните вводить название для быстрого поиска или добавьте новую ИС");
+            toolTip.SetToolTip(btnEditSystem, "Открыть карточку выбранной ИС или создать новую");
+            toolTip.SetToolTip(txtIPAddress, "Укажите один IP-адрес в формате IPv4");
+            toolTip.SetToolTip(chkCombined, "Автоматически отметит прод и тест, если IP общий");
+            toolTip.SetToolTip(txtRequestNumber, "Если IP уже зарегистрирован в namen, укажите номер заявки");
+            toolTip.SetToolTip(chkRegisterNamen, "Отправить заявку в namen сразу после сохранения IP");
 
             LoadSystems();
+            UpdateSystemDetails();
+            UpdateNamenStatusLabel();
 
             if (_isEditMode)
             {
@@ -50,12 +67,34 @@ namespace IPWhiteListManager.Forms
 
         private void LoadSystems()
         {
+            var currentText = cmbSystem.Text;
+
             var systems = _dbManager.GetAllSystems();
             cmbSystem.Items.Clear();
+
+            _systemAutoComplete.Clear();
 
             foreach (var system in systems)
             {
                 cmbSystem.Items.Add(system.SystemName);
+                _systemAutoComplete.Add(system.SystemName);
+            }
+
+            cmbSystem.AutoCompleteMode = AutoCompleteMode.SuggestAppend;
+            cmbSystem.AutoCompleteSource = AutoCompleteSource.CustomSource;
+            cmbSystem.AutoCompleteCustomSource = _systemAutoComplete;
+
+            if (!string.IsNullOrWhiteSpace(currentText))
+            {
+                var index = cmbSystem.FindStringExact(currentText);
+                if (index >= 0)
+                {
+                    cmbSystem.SelectedIndex = index;
+                }
+                else
+                {
+                    cmbSystem.Text = currentText;
+                }
             }
         }
 
@@ -75,6 +114,8 @@ namespace IPWhiteListManager.Forms
             {
                 chkRegisterNamen.Enabled = !_isEditMode || (_ipToEdit != null && !_ipToEdit.IsRegisteredInNamen);
             }
+
+            UpdateNamenStatusLabel();
         }
 
         private void CheckExistingIP()
@@ -123,6 +164,7 @@ namespace IPWhiteListManager.Forms
                         break;
                 }
 
+                UpdateSystemDetails();
                 MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment}).\n" +
                                "Система и текущее окружение заблокированы для редактирования.",
                                "IP-адрес найден",
@@ -135,6 +177,7 @@ namespace IPWhiteListManager.Forms
                 chkTest.Enabled = true;
                 chkCombined.Enabled = true;
                 SetCombinedState(false, false);
+                UpdateSystemDetails();
             }
         }
 
@@ -163,6 +206,7 @@ namespace IPWhiteListManager.Forms
 
             var environment = GetEnvironmentType();
             var systemId = GetOrCreateSystem(cmbSystem.Text.Trim());
+            UpdateSystemDetails();
             if (systemId == -1)
             {
                 MessageBox.Show("Не удалось создать или выбрать ИС. Повторите попытку после добавления системы.", "Ошибка",
@@ -229,6 +273,7 @@ namespace IPWhiteListManager.Forms
 
             if (existingSystem != null)
             {
+                _selectedSystem = existingSystem;
                 return existingSystem.Id;
             }
 
@@ -242,6 +287,8 @@ namespace IPWhiteListManager.Forms
                     if (createdSystem != null)
                     {
                         cmbSystem.SelectedItem = createdSystem.SystemName;
+                        UpdateSystemDetails();
+                        _selectedSystem = createdSystem;
                         return createdSystem.Id;
                     }
                 }
@@ -376,8 +423,15 @@ namespace IPWhiteListManager.Forms
 
             chkRegisterNamen.Checked = false;
             chkRegisterNamen.Enabled = !_ipToEdit.IsRegisteredInNamen && string.IsNullOrEmpty(_ipToEdit.NamenRequestNumber);
+            lblNamenStatus.Text = _ipToEdit.IsRegisteredInNamen
+                ? "Статус регистрации: ✓ зарегистрирован"
+                : (!string.IsNullOrEmpty(_ipToEdit.NamenRequestNumber)
+                    ? $"Статус регистрации: заявка {_ipToEdit.NamenRequestNumber}"
+                    : "Статус регистрации: возможно регистрация");
 
             PopulateEnvironmentFromEdit();
+            UpdateSystemDetails();
+            UpdateNamenStatusLabel();
         }
 
         private void PopulateEnvironmentFromEdit()
@@ -432,6 +486,192 @@ namespace IPWhiteListManager.Forms
             return chkRegisterNamen.Checked &&
                    string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) &&
                    !_ipToEdit.IsRegisteredInNamen;
+        }
+
+        private void UpdateNamenStatusLabel()
+        {
+            if (_isEditMode && _ipToEdit != null)
+            {
+                if (_ipToEdit.IsRegisteredInNamen)
+                {
+                    lblNamenStatus.Text = "Статус регистрации: ✓ зарегистрирован";
+                }
+                else if (!string.IsNullOrEmpty(_ipToEdit.NamenRequestNumber))
+                {
+                    lblNamenStatus.Text = $"Статус регистрации: заявка {_ipToEdit.NamenRequestNumber}";
+                }
+                else if (!string.IsNullOrWhiteSpace(txtRequestNumber.Text))
+                {
+                    lblNamenStatus.Text = $"Статус регистрации: заявка {txtRequestNumber.Text.Trim()}";
+                }
+                else if (chkRegisterNamen.Checked)
+                {
+                    lblNamenStatus.Text = "Статус регистрации: заявка будет создана";
+                }
+                else
+                {
+                    lblNamenStatus.Text = "Статус регистрации: без автоматической заявки";
+                }
+
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(txtRequestNumber.Text))
+            {
+                lblNamenStatus.Text = $"Статус регистрации: заявка {txtRequestNumber.Text.Trim()}";
+            }
+            else if (chkRegisterNamen.Checked)
+            {
+                lblNamenStatus.Text = "Статус регистрации: заявка будет создана";
+            }
+            else
+            {
+                lblNamenStatus.Text = "Статус регистрации: ручной контроль";
+            }
+        }
+
+        private void ChkRegisterNamen_CheckedChanged(object sender, EventArgs e)
+        {
+            UpdateNamenStatusLabel();
+        }
+
+        private void UpdateSystemDetails()
+        {
+            var systemName = cmbSystem.Text?.Trim();
+
+            if (string.IsNullOrEmpty(systemName))
+            {
+                txtSystemDetails.Text = "Введите или выберите систему, чтобы увидеть подробности.";
+                btnEditSystem.Enabled = false;
+                _selectedSystem = null;
+                return;
+            }
+
+            var system = _dbManager.FindSystemByName(systemName);
+
+            if (system == null)
+            {
+                txtSystemDetails.Text = "Система не найдена в справочнике. Нажмите \"Инфо об ИС...\", чтобы добавить её.";
+                btnEditSystem.Enabled = true;
+                _selectedSystem = null;
+                return;
+            }
+
+            _selectedSystem = system;
+
+            var infoLines = new List<string>();
+
+            infoLines.Add($"Наименование: {system.SystemName}");
+
+            if (!string.IsNullOrWhiteSpace(system.Description))
+            {
+                infoLines.Add($"Описание: {system.Description}");
+            }
+
+            var ownerInfo = FormatContact("Владелец", system.OwnerName, system.OwnerEmail);
+            if (!string.IsNullOrEmpty(ownerInfo))
+            {
+                infoLines.Add(ownerInfo);
+            }
+
+            var technicalInfo = FormatContact("Технический специалист", system.TechnicalSpecialistName, system.TechnicalSpecialistEmail);
+            if (!string.IsNullOrEmpty(technicalInfo))
+            {
+                infoLines.Add(technicalInfo);
+            }
+
+            var curatorInfo = FormatContact("Куратор", system.CuratorName, system.CuratorEmail);
+            if (!string.IsNullOrEmpty(curatorInfo))
+            {
+                infoLines.Add(curatorInfo);
+            }
+
+            infoLines.Add($"Объединенные контуры: {(system.IsTestProductionCombined ? "Да" : "Нет")}");
+
+            txtSystemDetails.Text = string.Join(Environment.NewLine, infoLines);
+            btnEditSystem.Enabled = true;
+        }
+
+        private static string FormatContact(string role, string name, string email)
+        {
+            if (string.IsNullOrWhiteSpace(name) && string.IsNullOrWhiteSpace(email))
+            {
+                return null;
+            }
+
+            if (!string.IsNullOrWhiteSpace(name) && !string.IsNullOrWhiteSpace(email))
+            {
+                return $"{role}: {name} ({email})";
+            }
+
+            return !string.IsNullOrWhiteSpace(name)
+                ? $"{role}: {name}"
+                : $"{role}: {email}";
+        }
+
+        private void CmbSystem_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            UpdateSystemDetails();
+        }
+
+        private void CmbSystem_TextChanged(object sender, EventArgs e)
+        {
+            UpdateSystemDetails();
+        }
+
+        private void BtnEditSystem_Click(object sender, EventArgs e)
+        {
+            var systemName = cmbSystem.Text?.Trim();
+
+            if (string.IsNullOrEmpty(systemName))
+            {
+                MessageBox.Show("Сначала выберите или введите наименование ИС", "Информация",
+                    MessageBoxButtons.OK, MessageBoxIcon.Information);
+                return;
+            }
+
+            SystemInfo system = _selectedSystem ?? _dbManager.FindSystemByName(systemName);
+
+            if (system == null)
+            {
+                using (var addSystemForm = new AddSystemForm(_dbManager, systemName))
+                {
+                    if (addSystemForm.ShowDialog(this) == DialogResult.OK)
+                    {
+                        ReloadSystemsAndSelect(systemName);
+                    }
+                }
+                return;
+            }
+
+            using (var editSystemForm = new AddSystemForm(_dbManager, system))
+            {
+                if (editSystemForm.ShowDialog(this) == DialogResult.OK)
+                {
+                    var updatedName = editSystemForm.CreatedSystem?.SystemName ?? system.SystemName;
+                    ReloadSystemsAndSelect(updatedName);
+                }
+            }
+        }
+
+        private void ReloadSystemsAndSelect(string systemName)
+        {
+            LoadSystems();
+
+            if (!string.IsNullOrWhiteSpace(systemName))
+            {
+                var index = cmbSystem.FindStringExact(systemName);
+                if (index >= 0)
+                {
+                    cmbSystem.SelectedIndex = index;
+                }
+                else
+                {
+                    cmbSystem.Text = systemName;
+                }
+            }
+
+            UpdateSystemDetails();
         }
     }
 }

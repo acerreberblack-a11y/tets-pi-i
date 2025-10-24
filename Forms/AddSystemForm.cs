@@ -1,4 +1,6 @@
 using System;
+using System.ComponentModel;
+using System.Net.Mail;
 using System.Windows.Forms;
 using IPWhiteListManager.Data;
 using IPWhiteListManager.Models;
@@ -27,6 +29,20 @@ namespace IPWhiteListManager.Forms
 
             btnSave.Click += BtnSave_Click;
             btnCancel.Click += BtnCancel_Click;
+            btnCopyOwnerToTech.Click += BtnCopyOwnerToTech_Click;
+
+            txtSystemName.Validating += RequiredField_Validating;
+            txtOwnerName.Validating += RequiredField_Validating;
+            txtOwnerEmail.Validating += OwnerEmail_Validating;
+            txtTechnicalName.Validating += RequiredField_Validating;
+            txtTechnicalEmail.Validating += TechnicalEmail_Validating;
+
+            toolTip.SetToolTip(txtSystemName, "Официальное наименование информационной системы");
+            toolTip.SetToolTip(txtDescription, "Краткое описание назначения или ключевых особенностей ИС");
+            toolTip.SetToolTip(txtOwnerEmail, "Рабочая почта владельца системы");
+            toolTip.SetToolTip(txtTechnicalEmail, "Почта ответственного технического специалиста");
+            toolTip.SetToolTip(txtCuratorEmail, "Дополнительный контакт, например, куратора из ТП");
+            toolTip.SetToolTip(btnCopyOwnerToTech, "Если владелец и технический специалист совпадают, заполните поля автоматически");
 
             if (_isEditMode)
             {
@@ -48,25 +64,17 @@ namespace IPWhiteListManager.Forms
             txtOwnerEmail.Text = system.OwnerEmail ?? string.Empty;
             txtTechnicalName.Text = system.TechnicalSpecialistName ?? string.Empty;
             txtTechnicalEmail.Text = system.TechnicalSpecialistEmail ?? string.Empty;
+            txtCuratorName.Text = system.CuratorName ?? string.Empty;
+            txtCuratorEmail.Text = system.CuratorEmail ?? string.Empty;
         }
 
         private void BtnSave_Click(object sender, EventArgs e)
         {
-            if (string.IsNullOrWhiteSpace(txtSystemName.Text))
-            {
-                MessageBox.Show("Введите наименование ИС", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
+            errorProvider.Clear();
 
-            if (string.IsNullOrWhiteSpace(txtOwnerName.Text) || string.IsNullOrWhiteSpace(txtOwnerEmail.Text))
+            if (!ValidateForm())
             {
-                MessageBox.Show("Заполните данные владельца системы", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
-                return;
-            }
-
-            if (string.IsNullOrWhiteSpace(txtTechnicalName.Text) || string.IsNullOrWhiteSpace(txtTechnicalEmail.Text))
-            {
-                MessageBox.Show("Заполните данные технического специалиста", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
+                MessageBox.Show("Проверьте корректность заполнения обязательных полей", "Ошибка", MessageBoxButtons.OK, MessageBoxIcon.Error);
                 return;
             }
 
@@ -79,8 +87,8 @@ namespace IPWhiteListManager.Forms
                 TechnicalSpecialistName = txtTechnicalName.Text.Trim(),
                 TechnicalSpecialistEmail = txtTechnicalEmail.Text.Trim(),
                 IsTestProductionCombined = _systemToEdit?.IsTestProductionCombined ?? false,
-                CuratorName = _systemToEdit?.CuratorName,
-                CuratorEmail = _systemToEdit?.CuratorEmail
+                CuratorName = string.IsNullOrWhiteSpace(txtCuratorName.Text) ? null : txtCuratorName.Text.Trim(),
+                CuratorEmail = string.IsNullOrWhiteSpace(txtCuratorEmail.Text) ? null : txtCuratorEmail.Text.Trim()
             };
 
             try
@@ -111,6 +119,116 @@ namespace IPWhiteListManager.Forms
         {
             DialogResult = DialogResult.Cancel;
             Close();
+        }
+
+        private void BtnCopyOwnerToTech_Click(object sender, EventArgs e)
+        {
+            txtTechnicalName.Text = txtOwnerName.Text;
+            txtTechnicalEmail.Text = txtOwnerEmail.Text;
+        }
+
+        private void RequiredField_Validating(object sender, CancelEventArgs e)
+        {
+            if (sender is TextBox textBox)
+            {
+                if (string.IsNullOrWhiteSpace(textBox.Text))
+                {
+                    errorProvider.SetError(textBox, "Поле обязательно для заполнения");
+                    e.Cancel = true;
+                }
+                else
+                {
+                    errorProvider.SetError(textBox, string.Empty);
+                }
+            }
+        }
+
+        private void OwnerEmail_Validating(object sender, CancelEventArgs e)
+        {
+            ValidateEmailField(txtOwnerEmail, true, e);
+        }
+
+        private void TechnicalEmail_Validating(object sender, CancelEventArgs e)
+        {
+            ValidateEmailField(txtTechnicalEmail, true, e);
+        }
+
+        private bool ValidateForm()
+        {
+            var fields = new[]
+            {
+                txtSystemName,
+                txtOwnerName,
+                txtOwnerEmail,
+                txtTechnicalName,
+                txtTechnicalEmail
+            };
+
+            var allValid = true;
+
+            foreach (var field in fields)
+            {
+                if (string.IsNullOrWhiteSpace(field.Text))
+                {
+                    errorProvider.SetError(field, "Поле обязательно для заполнения");
+                    allValid = false;
+                }
+            }
+
+            if (!ValidateEmail(txtOwnerEmail.Text))
+            {
+                errorProvider.SetError(txtOwnerEmail, "Введите корректный email владельца");
+                allValid = false;
+            }
+
+            if (!ValidateEmail(txtTechnicalEmail.Text))
+            {
+                errorProvider.SetError(txtTechnicalEmail, "Введите корректный email технического специалиста");
+                allValid = false;
+            }
+
+            if (!string.IsNullOrWhiteSpace(txtCuratorEmail.Text) && !ValidateEmail(txtCuratorEmail.Text))
+            {
+                errorProvider.SetError(txtCuratorEmail, "Введите корректный email куратора");
+                allValid = false;
+            }
+
+            return allValid;
+        }
+
+        private void ValidateEmailField(TextBox textBox, bool required, CancelEventArgs e)
+        {
+            var value = textBox.Text.Trim();
+
+            if (required && string.IsNullOrWhiteSpace(value))
+            {
+                errorProvider.SetError(textBox, "Поле обязательно для заполнения");
+                e.Cancel = true;
+                return;
+            }
+
+            if (!string.IsNullOrWhiteSpace(value) && !ValidateEmail(value))
+            {
+                errorProvider.SetError(textBox, "Введите корректный email");
+                e.Cancel = true;
+            }
+            else
+            {
+                errorProvider.SetError(textBox, string.Empty);
+            }
+        }
+
+        private static bool ValidateEmail(string email)
+        {
+            try
+            {
+                _ = new MailAddress(email);
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
         }
     }
 }

@@ -17,6 +17,7 @@ namespace IPWhiteListManager.Forms
 
         private void InitializeComponent()
         {
+            this.components = new System.ComponentModel.Container();
             this.lblSystemName = new System.Windows.Forms.Label();
             this.txtSystemName = new System.Windows.Forms.TextBox();
             this.lblDescription = new System.Windows.Forms.Label();
@@ -31,14 +32,24 @@ namespace IPWhiteListManager.Forms
             this.lblTechnicalEmail = new System.Windows.Forms.Label();
             this.txtTechnicalName = new System.Windows.Forms.TextBox();
             this.lblTechnicalName = new System.Windows.Forms.Label();
+            this.grpCurator = new System.Windows.Forms.GroupBox();
+            this.txtCuratorEmail = new System.Windows.Forms.TextBox();
+            this.lblCuratorEmail = new System.Windows.Forms.Label();
+            this.txtCuratorName = new System.Windows.Forms.TextBox();
+            this.lblCuratorName = new System.Windows.Forms.Label();
             this.btnSave = new System.Windows.Forms.Button();
             this.btnCancel = new System.Windows.Forms.Button();
+            this.btnCopyOwnerToTech = new System.Windows.Forms.Button();
+            this.errorProvider = new System.Windows.Forms.ErrorProvider(this.components);
+            this.toolTip = new System.Windows.Forms.ToolTip(this.components);
             this.grpOwner.SuspendLayout();
             this.grpTechnical.SuspendLayout();
+            this.grpCurator.SuspendLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.errorProvider)).BeginInit();
             this.SuspendLayout();
-            // 
+            //
             // lblSystemName
-            // 
+            //
             this.lblSystemName.AutoSize = true;
             this.lblSystemName.Location = new System.Drawing.Point(20, 20);
             this.lblSystemName.Name = "lblSystemName";
@@ -68,22 +79,22 @@ namespace IPWhiteListManager.Forms
             this.txtDescription.Multiline = true;
             this.txtDescription.Name = "txtDescription";
             this.txtDescription.ScrollBars = System.Windows.Forms.ScrollBars.Vertical;
-            this.txtDescription.Size = new System.Drawing.Size(420, 60);
+            this.txtDescription.Size = new System.Drawing.Size(420, 70);
             this.txtDescription.TabIndex = 3;
-            // 
+            //
             // grpOwner
             //
             this.grpOwner.Controls.Add(this.txtOwnerEmail);
             this.grpOwner.Controls.Add(this.lblOwnerEmail);
             this.grpOwner.Controls.Add(this.txtOwnerName);
             this.grpOwner.Controls.Add(this.lblOwnerName);
-            this.grpOwner.Location = new System.Drawing.Point(20, 160);
+            this.grpOwner.Location = new System.Drawing.Point(20, 165);
             this.grpOwner.Name = "grpOwner";
-            this.grpOwner.Size = new System.Drawing.Size(420, 90);
+            this.grpOwner.Size = new System.Drawing.Size(420, 100);
             this.grpOwner.TabIndex = 5;
             this.grpOwner.TabStop = false;
             this.grpOwner.Text = "Владелец системы";
-            // 
+            //
             // txtOwnerEmail
             // 
             this.txtOwnerEmail.Location = new System.Drawing.Point(90, 55);
@@ -122,15 +133,15 @@ namespace IPWhiteListManager.Forms
             this.grpTechnical.Controls.Add(this.lblTechnicalEmail);
             this.grpTechnical.Controls.Add(this.txtTechnicalName);
             this.grpTechnical.Controls.Add(this.lblTechnicalName);
-            this.grpTechnical.Location = new System.Drawing.Point(20, 260);
+            this.grpTechnical.Location = new System.Drawing.Point(20, 315);
             this.grpTechnical.Name = "grpTechnical";
-            this.grpTechnical.Size = new System.Drawing.Size(420, 90);
+            this.grpTechnical.Size = new System.Drawing.Size(420, 100);
             this.grpTechnical.TabIndex = 6;
             this.grpTechnical.TabStop = false;
             this.grpTechnical.Text = "Технический специалист";
-            // 
+            //
             // txtTechnicalEmail
-            // 
+            //
             this.txtTechnicalEmail.Location = new System.Drawing.Point(90, 55);
             this.txtTechnicalEmail.Name = "txtTechnicalEmail";
             this.txtTechnicalEmail.Size = new System.Drawing.Size(310, 20);
@@ -160,34 +171,96 @@ namespace IPWhiteListManager.Forms
             this.lblTechnicalName.Size = new System.Drawing.Size(29, 13);
             this.lblTechnicalName.TabIndex = 0;
             this.lblTechnicalName.Text = "ФИО";
-            // 
+            //
+            // grpCurator
+            //
+            this.grpCurator.Controls.Add(this.txtCuratorEmail);
+            this.grpCurator.Controls.Add(this.lblCuratorEmail);
+            this.grpCurator.Controls.Add(this.txtCuratorName);
+            this.grpCurator.Controls.Add(this.lblCuratorName);
+            this.grpCurator.Location = new System.Drawing.Point(20, 465);
+            this.grpCurator.Name = "grpCurator";
+            this.grpCurator.Size = new System.Drawing.Size(420, 100);
+            this.grpCurator.TabIndex = 8;
+            this.grpCurator.TabStop = false;
+            this.grpCurator.Text = "Куратор / контакт ТП";
+            //
+            // txtCuratorEmail
+            //
+            this.txtCuratorEmail.Location = new System.Drawing.Point(90, 55);
+            this.txtCuratorEmail.Name = "txtCuratorEmail";
+            this.txtCuratorEmail.Size = new System.Drawing.Size(310, 20);
+            this.txtCuratorEmail.TabIndex = 3;
+            //
+            // lblCuratorEmail
+            //
+            this.lblCuratorEmail.AutoSize = true;
+            this.lblCuratorEmail.Location = new System.Drawing.Point(15, 58);
+            this.lblCuratorEmail.Name = "lblCuratorEmail";
+            this.lblCuratorEmail.Size = new System.Drawing.Size(38, 13);
+            this.lblCuratorEmail.TabIndex = 2;
+            this.lblCuratorEmail.Text = "Почта";
+            //
+            // txtCuratorName
+            //
+            this.txtCuratorName.Location = new System.Drawing.Point(90, 25);
+            this.txtCuratorName.Name = "txtCuratorName";
+            this.txtCuratorName.Size = new System.Drawing.Size(310, 20);
+            this.txtCuratorName.TabIndex = 1;
+            //
+            // lblCuratorName
+            //
+            this.lblCuratorName.AutoSize = true;
+            this.lblCuratorName.Location = new System.Drawing.Point(15, 28);
+            this.lblCuratorName.Name = "lblCuratorName";
+            this.lblCuratorName.Size = new System.Drawing.Size(29, 13);
+            this.lblCuratorName.TabIndex = 0;
+            this.lblCuratorName.Text = "ФИО";
+            //
             // btnSave
-            // 
+            //
             this.btnSave.BackColor = System.Drawing.Color.SteelBlue;
             this.btnSave.ForeColor = System.Drawing.Color.White;
-            this.btnSave.Location = new System.Drawing.Point(254, 365);
+            this.btnSave.Location = new System.Drawing.Point(254, 580);
             this.btnSave.Name = "btnSave";
             this.btnSave.Size = new System.Drawing.Size(90, 27);
-            this.btnSave.TabIndex = 7;
+            this.btnSave.TabIndex = 9;
             this.btnSave.Text = "Сохранить";
             this.btnSave.UseVisualStyleBackColor = false;
-            // 
+            //
             // btnCancel
-            // 
-            this.btnCancel.Location = new System.Drawing.Point(350, 365);
+            //
+            this.btnCancel.Location = new System.Drawing.Point(350, 580);
             this.btnCancel.Name = "btnCancel";
             this.btnCancel.Size = new System.Drawing.Size(90, 27);
-            this.btnCancel.TabIndex = 8;
+            this.btnCancel.TabIndex = 10;
             this.btnCancel.Text = "Отмена";
             this.btnCancel.UseVisualStyleBackColor = true;
-            // 
+            //
+            // btnCopyOwnerToTech
+            //
+            this.btnCopyOwnerToTech.Location = new System.Drawing.Point(20, 425);
+            this.btnCopyOwnerToTech.Name = "btnCopyOwnerToTech";
+            this.btnCopyOwnerToTech.Size = new System.Drawing.Size(200, 27);
+            this.btnCopyOwnerToTech.TabIndex = 7;
+            this.btnCopyOwnerToTech.Text = "Скопировать данные владельца";
+            this.btnCopyOwnerToTech.UseVisualStyleBackColor = true;
+            //
+            // errorProvider
+            //
+            this.errorProvider.BlinkStyle = System.Windows.Forms.ErrorBlinkStyle.NeverBlink;
+            this.errorProvider.ContainerControl = this;
+            //
             // AddSystemForm
-            // 
+            //
             this.AutoScaleDimensions = new System.Drawing.SizeF(6F, 13F);
             this.AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            this.ClientSize = new System.Drawing.Size(464, 411);
+            this.AutoValidate = System.Windows.Forms.AutoValidate.EnableAllowFocusChange;
+            this.ClientSize = new System.Drawing.Size(464, 631);
             this.Controls.Add(this.btnCancel);
             this.Controls.Add(this.btnSave);
+            this.Controls.Add(this.btnCopyOwnerToTech);
+            this.Controls.Add(this.grpCurator);
             this.Controls.Add(this.grpTechnical);
             this.Controls.Add(this.grpOwner);
             this.Controls.Add(this.txtDescription);
@@ -207,6 +280,9 @@ namespace IPWhiteListManager.Forms
             this.grpOwner.PerformLayout();
             this.grpTechnical.ResumeLayout(false);
             this.grpTechnical.PerformLayout();
+            this.grpCurator.ResumeLayout(false);
+            this.grpCurator.PerformLayout();
+            ((System.ComponentModel.ISupportInitialize)(this.errorProvider)).EndInit();
             this.ResumeLayout(false);
             this.PerformLayout();
 
@@ -228,7 +304,15 @@ namespace IPWhiteListManager.Forms
         private System.Windows.Forms.Label lblTechnicalEmail;
         private System.Windows.Forms.TextBox txtTechnicalName;
         private System.Windows.Forms.Label lblTechnicalName;
+        private System.Windows.Forms.GroupBox grpCurator;
+        private System.Windows.Forms.TextBox txtCuratorEmail;
+        private System.Windows.Forms.Label lblCuratorEmail;
+        private System.Windows.Forms.TextBox txtCuratorName;
+        private System.Windows.Forms.Label lblCuratorName;
         private System.Windows.Forms.Button btnSave;
         private System.Windows.Forms.Button btnCancel;
+        private System.Windows.Forms.Button btnCopyOwnerToTech;
+        private System.Windows.Forms.ErrorProvider errorProvider;
+        private System.Windows.Forms.ToolTip toolTip;
     }
 }
