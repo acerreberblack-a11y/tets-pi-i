@@ -16,6 +16,7 @@ namespace IPWhiteListManager.Forms
         private BindingList<IPAddressInfo> _ipAddresses;
         private List<SystemInfo> _systems;
         private IPAddressInfo _selectedIP;
+        private bool _suppressFilterEvents;
 
         public MainForm()
         {
@@ -33,6 +34,9 @@ namespace IPWhiteListManager.Forms
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
+            this.txtFilter.TextChanged += FilterControlChanged;
+            this.cmbSystemFilter.SelectedIndexChanged += FilterControlChanged;
+            this.cmbEnvironmentFilter.SelectedIndexChanged += FilterControlChanged;
         }
 
         private void MainForm_Load(object sender, EventArgs e)
@@ -43,26 +47,36 @@ namespace IPWhiteListManager.Forms
 
         private void LoadData()
         {
-            _systems = _dbManager.GetAllSystems();
-            var ipAddresses = _dbManager.GetAllIPAddresses();
-
-            // Заполнение фильтров
-            cmbSystemFilter.Items.Clear();
-            cmbSystemFilter.Items.Add("Все системы");
-            foreach (var system in _systems)
+            _suppressFilterEvents = true;
+            try
             {
-                cmbSystemFilter.Items.Add(system.SystemName);
+                _systems = _dbManager.GetAllSystems();
+                var ipAddresses = _dbManager.GetAllIPAddresses();
+
+                // Заполнение фильтров
+                cmbSystemFilter.Items.Clear();
+                cmbSystemFilter.Items.Add("Все системы");
+                foreach (var system in _systems)
+                {
+                    cmbSystemFilter.Items.Add(system.SystemName);
+                }
+                cmbSystemFilter.SelectedIndex = 0;
+
+                cmbEnvironmentFilter.Items.Clear();
+                cmbEnvironmentFilter.Items.Add("Все контуры");
+                cmbEnvironmentFilter.Items.Add("Test");
+                cmbEnvironmentFilter.Items.Add("Production");
+                cmbEnvironmentFilter.Items.Add("Both");
+                cmbEnvironmentFilter.SelectedIndex = 0;
+
+                BindIpAddresses(ipAddresses);
             }
-            cmbSystemFilter.SelectedIndex = 0;
+            finally
+            {
+                _suppressFilterEvents = false;
+            }
 
-            cmbEnvironmentFilter.Items.Clear();
-            cmbEnvironmentFilter.Items.Add("Все контуры");
-            cmbEnvironmentFilter.Items.Add("Test");
-            cmbEnvironmentFilter.Items.Add("Production");
-            cmbEnvironmentFilter.Items.Add("Both");
-            cmbEnvironmentFilter.SelectedIndex = 0;
-
-            BindIpAddresses(ipAddresses);
+            ApplyFilters();
         }
 
         private void SetupDataGridView()
@@ -118,6 +132,11 @@ namespace IPWhiteListManager.Forms
 
         private void ApplyFilters()
         {
+            if (_suppressFilterEvents)
+            {
+                return;
+            }
+
             var filtered = _dbManager.GetAllIPAddresses();
 
             // Фильтр по тексту
@@ -145,6 +164,11 @@ namespace IPWhiteListManager.Forms
             }
 
             BindIpAddresses(filtered);
+        }
+
+        private void FilterControlChanged(object sender, EventArgs e)
+        {
+            ApplyFilters();
         }
 
         private void DgvIPAddresses_SelectionChanged(object sender, EventArgs e)
