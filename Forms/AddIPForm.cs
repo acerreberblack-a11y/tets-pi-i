@@ -149,6 +149,7 @@ namespace IPWhiteListManager.Forms
                     chkCombined.Enabled = true;
                     SetCombinedState(false, true);
                     UpdateSystemDetails();
+                    RefreshPendingIpEnvironmentColumn();
                 }
 
                 return true;
@@ -199,6 +200,7 @@ namespace IPWhiteListManager.Forms
                     }
 
                     UpdateSystemDetails();
+                    RefreshPendingIpEnvironmentColumn();
                 }
 
                 if (showExistingMessage)
@@ -449,7 +451,7 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            dgvIpAddresses.Rows.Add(ipAddress);
+            dgvIpAddresses.Rows.Add(ipAddress, GetEnvironmentDisplayName(GetEnvironmentType()));
             txtIPAddress.Clear();
             txtIPAddress.Focus();
             UpdateIpListControls();
@@ -524,6 +526,24 @@ namespace IPWhiteListManager.Forms
             btnRemoveIp.Enabled = dgvIpAddresses.SelectedRows.Count > 0;
         }
 
+        private void RefreshPendingIpEnvironmentColumn()
+        {
+            if (_isEditMode || colEnvironment.Index < 0 || colEnvironment.Index >= dgvIpAddresses.Columns.Count)
+            {
+                return;
+            }
+
+            var label = GetEnvironmentDisplayName(GetEnvironmentType());
+
+            foreach (DataGridViewRow row in dgvIpAddresses.Rows)
+            {
+                if (!row.IsNewRow)
+                {
+                    row.Cells[colEnvironment.Index].Value = label;
+                }
+            }
+        }
+
         private void ToggleMultiIpControls(bool enabled)
         {
             lblIpList.Visible = enabled;
@@ -536,6 +556,7 @@ namespace IPWhiteListManager.Forms
             btnAddIp.Enabled = enabled;
             btnRemoveIp.Enabled = enabled && dgvIpAddresses.SelectedRows.Count > 0;
             UpdateIpListControls();
+            RefreshPendingIpEnvironmentColumn();
         }
 
         private void ChkCombined_CheckedChanged(object sender, EventArgs e)
@@ -574,6 +595,8 @@ namespace IPWhiteListManager.Forms
                     chkCombined.Enabled = false;
                 }
             }
+
+            RefreshPendingIpEnvironmentColumn();
         }
 
         private void EnvironmentCheckBoxChanged(object sender, EventArgs e)
@@ -600,6 +623,7 @@ namespace IPWhiteListManager.Forms
 
             var shouldCombine = chkProduction.Checked && chkTest.Checked;
             SetCombinedState(shouldCombine, false);
+            RefreshPendingIpEnvironmentColumn();
         }
 
         private void SetCombinedState(bool isCombined, bool adjustEnabled)
@@ -622,6 +646,8 @@ namespace IPWhiteListManager.Forms
             {
                 _isUpdatingCombinedState = false;
             }
+
+            RefreshPendingIpEnvironmentColumn();
         }
 
         private void PromoteDuplicateToCombined()

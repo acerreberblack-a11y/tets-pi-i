@@ -21,6 +21,9 @@ namespace IPWhiteListManager.Forms
         private List<SystemInfo> _systems;
         private IPAddressInfo _selectedIP;
         private bool _suppressFilterEvents;
+        private bool _dataGridInitialized;
+        private DataGridViewColumn _lastSortedColumn;
+        private bool _sortAscending = true;
 
         public MainForm()
         {
@@ -42,6 +45,7 @@ namespace IPWhiteListManager.Forms
             this.btnExportCsv.Click += BtnExportCsv_Click;
             this.btnImportCsv.Click += BtnImportCsv_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
+            this.dgvIPAddresses.ColumnHeaderMouseClick += DgvIPAddresses_ColumnHeaderMouseClick;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
             this.txtFilter.SelectedIndexChanged += FilterControlChanged;
@@ -95,12 +99,12 @@ namespace IPWhiteListManager.Forms
 
         private void SetupDataGridView()
         {
-            dgvIPAddresses.AutoGenerateColumns = false;
-
-            if (dgvIPAddresses.Columns.Count > 0)
+            if (_dataGridInitialized)
             {
                 return;
             }
+
+            dgvIPAddresses.AutoGenerateColumns = false;
 
             // Колонка ИС
             var systemColumn = new DataGridViewTextBoxColumn
@@ -108,7 +112,8 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "SystemName",
                 HeaderText = "ИС",
                 Name = "SystemName",
-                Width = 200
+                Width = 200,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             // Колонка Контур
@@ -117,7 +122,8 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "Environment",
                 HeaderText = "Контур",
                 Name = "Environment",
-                Width = 100
+                Width = 100,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             // Колонка IP
@@ -126,18 +132,105 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "IPAddress",
                 HeaderText = "IP",
                 Name = "IPAddress",
-                Width = 120
+                Width = 120,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             dgvIPAddresses.Columns.AddRange(new DataGridViewColumn[] { systemColumn, environmentColumn, ipColumn });
+            _dataGridInitialized = true;
         }
 
         private void BindIpAddresses(List<IPAddressInfo> ipAddresses)
         {
             SetupDataGridView();
+            foreach (DataGridViewColumn column in dgvIPAddresses.Columns)
+            {
+                column.HeaderCell.SortGlyphDirection = SortOrder.None;
+            }
+
+            if (_lastSortedColumn != null)
+            {
+                ipAddresses = SortIpAddresses(ipAddresses, _lastSortedColumn.DataPropertyName, _sortAscending);
+                _lastSortedColumn.HeaderCell.SortGlyphDirection = _sortAscending
+                    ? SortOrder.Ascending
+                    : SortOrder.Descending;
+            }
+
             _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
             dgvIPAddresses.DataSource = _ipAddresses;
             _selectedIP = null;
+        }
+
+        private void DgvIPAddresses_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
+        {
+            if (e.ColumnIndex < 0 || e.ColumnIndex >= dgvIPAddresses.Columns.Count)
+            {
+                return;
+            }
+
+            var column = dgvIPAddresses.Columns[e.ColumnIndex];
+
+            if (string.IsNullOrEmpty(column.DataPropertyName))
+            {
+                return;
+            }
+
+            if (_lastSortedColumn == column)
+            {
+                _sortAscending = !_sortAscending;
+            }
+            else
+            {
+                if (_lastSortedColumn != null)
+                {
+                    _lastSortedColumn.HeaderCell.SortGlyphDirection = SortOrder.None;
+                }
+
+                _lastSortedColumn = column;
+                _sortAscending = true;
+            }
+
+            var sorted = SortIpAddresses(_ipAddresses, column.DataPropertyName, _sortAscending);
+
+            _ipAddresses = new BindingList<IPAddressInfo>(sorted);
+            dgvIPAddresses.DataSource = _ipAddresses;
+
+            column.HeaderCell.SortGlyphDirection = _sortAscending
+                ? SortOrder.Ascending
+                : SortOrder.Descending;
+        }
+
+        private List<IPAddressInfo> SortIpAddresses(IEnumerable<IPAddressInfo> source, string dataPropertyName, bool ascending)
+        {
+            if (string.IsNullOrEmpty(dataPropertyName))
+            {
+                return source.ToList();
+            }
+
+            IOrderedEnumerable<IPAddressInfo> ordered;
+
+            switch (dataPropertyName)
+            {
+                case nameof(IPAddressInfo.SystemName):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.SystemName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        : source.OrderByDescending(ip => ip.SystemName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+                    break;
+                case nameof(IPAddressInfo.IPAddress):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.IPAddress ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        : source.OrderByDescending(ip => ip.IPAddress ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+                    break;
+                case nameof(IPAddressInfo.Environment):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.Environment)
+                        : source.OrderByDescending(ip => ip.Environment);
+                    break;
+                default:
+                    return source.ToList();
+            }
+
+            return ordered.ToList();
         }
 
         private void UpdateSearchSuggestions(IEnumerable<IPAddressInfo> ipAddresses)
