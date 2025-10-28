@@ -735,24 +735,36 @@ namespace IPWhiteListManager.Forms
         private void ExportCurrentDataToCsv(string filePath)
         {
             var builder = new StringBuilder();
-            builder.AppendLine("SystemName;Environment;IPAddress;IsRegisteredInNamen;NamenRequestNumber;RegistrationDate;OwnerName;OwnerEmail;TechnicalSpecialistName;TechnicalSpecialistEmail");
+            builder.AppendLine("IpId;SystemId;SystemName;SystemDescription;IsTestProductionCombined;CuratorName;CuratorEmail;OwnerName;OwnerEmail;TechnicalSpecialistName;TechnicalSpecialistEmail;SystemCreatedDate;Environment;IPAddress;IsRegisteredInNamen;NamenRequestNumber;RegistrationDate");
 
             foreach (var ip in _ipAddresses)
             {
                 var system = _systems.FirstOrDefault(s => s.Id == ip.SystemId);
+                var systemName = system?.SystemName ?? ip.SystemName;
+
+                var systemCreatedDate = system != null
+                    ? system.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")
+                    : string.Empty;
 
                 builder.AppendLine(string.Join(";", new[]
                 {
-                    CsvValue(ip.SystemName),
+                    CsvValue(ip.Id.ToString()),
+                    CsvValue(ip.SystemId.ToString()),
+                    CsvValue(systemName),
+                    CsvValue(system?.Description),
+                    CsvValue(system != null ? (system.IsTestProductionCombined ? "true" : "false") : string.Empty),
+                    CsvValue(system?.CuratorName),
+                    CsvValue(system?.CuratorEmail),
+                    CsvValue(system?.OwnerName),
+                    CsvValue(system?.OwnerEmail),
+                    CsvValue(system?.TechnicalSpecialistName),
+                    CsvValue(system?.TechnicalSpecialistEmail),
+                    CsvValue(systemCreatedDate),
                     CsvValue(ip.Environment.ToString()),
                     CsvValue(ip.IPAddress),
                     CsvValue(ip.IsRegisteredInNamen ? "true" : "false"),
                     CsvValue(ip.NamenRequestNumber),
-                    CsvValue(ip.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
-                    CsvValue(system?.OwnerName),
-                    CsvValue(system?.OwnerEmail),
-                    CsvValue(system?.TechnicalSpecialistName),
-                    CsvValue(system?.TechnicalSpecialistEmail)
+                    CsvValue(ip.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss"))
                 }));
             }
 
