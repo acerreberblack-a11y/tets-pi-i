@@ -45,6 +45,7 @@ namespace IPWhiteListManager.Forms
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
+            this.txtFilter.SelectedIndexChanged += FilterControlChanged;
             this.cmbSystemFilter.SelectedIndexChanged += FilterControlChanged;
             this.cmbEnvironmentFilter.SelectedIndexChanged += FilterControlChanged;
 
@@ -85,6 +86,7 @@ namespace IPWhiteListManager.Forms
                 cmbEnvironmentFilter.Items.Add("Both");
                 cmbEnvironmentFilter.SelectedIndex = 0;
 
+                UpdateSearchSuggestions(ipAddresses);
                 BindIpAddresses(ipAddresses);
             }
             finally
@@ -141,6 +143,37 @@ namespace IPWhiteListManager.Forms
             _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
             dgvIPAddresses.DataSource = _ipAddresses;
             _selectedIP = null;
+        }
+
+        private void UpdateSearchSuggestions(IEnumerable<IPAddressInfo> ipAddresses)
+        {
+            var currentText = txtFilter.Text;
+            var suggestions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var ipAddress in ipAddresses)
+            {
+                if (!string.IsNullOrWhiteSpace(ipAddress.IPAddress))
+                {
+                    suggestions.Add(ipAddress.IPAddress);
+                }
+
+                if (!string.IsNullOrWhiteSpace(ipAddress.SystemName))
+                {
+                    suggestions.Add(ipAddress.SystemName);
+                }
+            }
+
+            txtFilter.Items.Clear();
+            if (suggestions.Count > 0)
+            {
+                txtFilter.Items.AddRange(suggestions
+                    .OrderBy(value => value)
+                    .Cast<object>()
+                    .ToArray());
+            }
+
+            txtFilter.Text = currentText;
+            txtFilter.SelectionStart = txtFilter.Text.Length;
         }
 
         private void BtnSearch_Click(object sender, EventArgs e)

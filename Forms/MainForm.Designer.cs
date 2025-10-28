@@ -18,7 +18,7 @@ namespace IPWhiteListManager.Forms
         private void InitializeComponent()
         {
             this.dgvIPAddresses = new System.Windows.Forms.DataGridView();
-            this.txtFilter = new System.Windows.Forms.TextBox();
+            this.txtFilter = new System.Windows.Forms.ComboBox();
             this.cmbSystemFilter = new System.Windows.Forms.ComboBox();
             this.cmbEnvironmentFilter = new System.Windows.Forms.ComboBox();
             this.btnSearch = new System.Windows.Forms.Button();
@@ -69,10 +69,14 @@ namespace IPWhiteListManager.Forms
             this.dgvIPAddresses.TabIndex = 0;
             // 
             // txtFilter
-            // 
+            //
+            this.txtFilter.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+            this.txtFilter.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
+            this.txtFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
+            this.txtFilter.FormattingEnabled = true;
             this.txtFilter.Location = new System.Drawing.Point(33, 12);
             this.txtFilter.Name = "txtFilter";
-            this.txtFilter.Size = new System.Drawing.Size(160, 20);
+            this.txtFilter.Size = new System.Drawing.Size(160, 21);
             this.txtFilter.TabIndex = 1;
             // 
             // cmbSystemFilter
@@ -220,7 +224,7 @@ namespace IPWhiteListManager.Forms
             this.lblFilter.Name = "lblFilter";
             this.lblFilter.Size = new System.Drawing.Size(17, 13);
             this.lblFilter.TabIndex = 6;
-            this.lblFilter.Text = "IP";
+            this.lblFilter.Text = "Поиск";
             // 
             // panelTechInfo
             // 
@@ -396,7 +400,7 @@ namespace IPWhiteListManager.Forms
         #endregion
 
         private System.Windows.Forms.DataGridView dgvIPAddresses;
-        private System.Windows.Forms.TextBox txtFilter;
+        private System.Windows.Forms.ComboBox txtFilter;
         private System.Windows.Forms.ComboBox cmbSystemFilter;
         private System.Windows.Forms.ComboBox cmbEnvironmentFilter;
         private System.Windows.Forms.Button btnSearch;
