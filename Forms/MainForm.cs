@@ -21,6 +21,9 @@ namespace IPWhiteListManager.Forms
         private List<SystemInfo> _systems;
         private IPAddressInfo _selectedIP;
         private bool _suppressFilterEvents;
+        private bool _dataGridInitialized;
+        private DataGridViewColumn _lastSortedColumn;
+        private bool _sortAscending = true;
 
         public MainForm()
         {
@@ -32,7 +35,6 @@ namespace IPWhiteListManager.Forms
             _ipAddresses = new BindingList<IPAddressInfo>();
 
             // Подписка на события
-            this.btnSearch.Click += BtnSearch_Click;
             this.btnAddIP.Click += BtnAddIP_Click;
             this.btnAddSystem.Click += BtnAddSystem_Click;
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
@@ -43,9 +45,13 @@ namespace IPWhiteListManager.Forms
             this.btnExportCsv.Click += BtnExportCsv_Click;
             this.btnImportCsv.Click += BtnImportCsv_Click;
             this.dgvIPAddresses.SelectionChanged += DgvIPAddresses_SelectionChanged;
+            this.dgvIPAddresses.ColumnHeaderMouseClick += DgvIPAddresses_ColumnHeaderMouseClick;
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
+            this.txtFilter.SelectedIndexChanged += FilterControlChanged;
+            this.cmbSystemFilter.TextChanged += FilterControlChanged;
             this.cmbSystemFilter.SelectedIndexChanged += FilterControlChanged;
+            this.cmbSystemFilter.KeyPress += CmbSystemFilter_KeyPress;
             this.cmbEnvironmentFilter.SelectedIndexChanged += FilterControlChanged;
 
             UpdateContactInfo(null);
@@ -70,13 +76,7 @@ namespace IPWhiteListManager.Forms
                 var ipAddresses = _dbManager.GetAllIPAddresses();
 
                 // Заполнение фильтров
-                cmbSystemFilter.Items.Clear();
-                cmbSystemFilter.Items.Add("Все системы");
-                foreach (var system in _systems)
-                {
-                    cmbSystemFilter.Items.Add(system.SystemName);
-                }
-                cmbSystemFilter.SelectedIndex = 0;
+                UpdateSystemFilterItems();
 
                 cmbEnvironmentFilter.Items.Clear();
                 cmbEnvironmentFilter.Items.Add("Все контуры");
@@ -85,6 +85,7 @@ namespace IPWhiteListManager.Forms
                 cmbEnvironmentFilter.Items.Add("Both");
                 cmbEnvironmentFilter.SelectedIndex = 0;
 
+                UpdateSearchSuggestions(ipAddresses);
                 BindIpAddresses(ipAddresses);
             }
             finally
@@ -98,12 +99,12 @@ namespace IPWhiteListManager.Forms
 
         private void SetupDataGridView()
         {
-            dgvIPAddresses.AutoGenerateColumns = false;
-
-            if (dgvIPAddresses.Columns.Count > 0)
+            if (_dataGridInitialized)
             {
                 return;
             }
+
+            dgvIPAddresses.AutoGenerateColumns = false;
 
             // Колонка ИС
             var systemColumn = new DataGridViewTextBoxColumn
@@ -111,7 +112,8 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "SystemName",
                 HeaderText = "ИС",
                 Name = "SystemName",
-                Width = 200
+                Width = 200,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             // Колонка Контур
@@ -120,7 +122,8 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "Environment",
                 HeaderText = "Контур",
                 Name = "Environment",
-                Width = 100
+                Width = 100,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             // Колонка IP
@@ -129,23 +132,197 @@ namespace IPWhiteListManager.Forms
                 DataPropertyName = "IPAddress",
                 HeaderText = "IP",
                 Name = "IPAddress",
-                Width = 120
+                Width = 120,
+                SortMode = DataGridViewColumnSortMode.Programmatic
             };
 
             dgvIPAddresses.Columns.AddRange(new DataGridViewColumn[] { systemColumn, environmentColumn, ipColumn });
+            _dataGridInitialized = true;
         }
 
         private void BindIpAddresses(List<IPAddressInfo> ipAddresses)
         {
             SetupDataGridView();
+            foreach (DataGridViewColumn column in dgvIPAddresses.Columns)
+            {
+                column.HeaderCell.SortGlyphDirection = SortOrder.None;
+            }
+
+            if (_lastSortedColumn != null)
+            {
+                ipAddresses = SortIpAddresses(ipAddresses, _lastSortedColumn.DataPropertyName, _sortAscending);
+                _lastSortedColumn.HeaderCell.SortGlyphDirection = _sortAscending
+                    ? SortOrder.Ascending
+                    : SortOrder.Descending;
+            }
+
             _ipAddresses = new BindingList<IPAddressInfo>(ipAddresses);
             dgvIPAddresses.DataSource = _ipAddresses;
             _selectedIP = null;
         }
 
-        private void BtnSearch_Click(object sender, EventArgs e)
+        private void DgvIPAddresses_ColumnHeaderMouseClick(object sender, DataGridViewCellMouseEventArgs e)
         {
-            ApplyFilters();
+            if (e.ColumnIndex < 0 || e.ColumnIndex >= dgvIPAddresses.Columns.Count)
+            {
+                return;
+            }
+
+            var column = dgvIPAddresses.Columns[e.ColumnIndex];
+
+            if (string.IsNullOrEmpty(column.DataPropertyName))
+            {
+                return;
+            }
+
+            if (_lastSortedColumn == column)
+            {
+                _sortAscending = !_sortAscending;
+            }
+            else
+            {
+                if (_lastSortedColumn != null)
+                {
+                    _lastSortedColumn.HeaderCell.SortGlyphDirection = SortOrder.None;
+                }
+
+                _lastSortedColumn = column;
+                _sortAscending = true;
+            }
+
+            var sorted = SortIpAddresses(_ipAddresses, column.DataPropertyName, _sortAscending);
+
+            _ipAddresses = new BindingList<IPAddressInfo>(sorted);
+            dgvIPAddresses.DataSource = _ipAddresses;
+
+            column.HeaderCell.SortGlyphDirection = _sortAscending
+                ? SortOrder.Ascending
+                : SortOrder.Descending;
+        }
+
+        private List<IPAddressInfo> SortIpAddresses(IEnumerable<IPAddressInfo> source, string dataPropertyName, bool ascending)
+        {
+            if (string.IsNullOrEmpty(dataPropertyName))
+            {
+                return source.ToList();
+            }
+
+            IOrderedEnumerable<IPAddressInfo> ordered;
+
+            switch (dataPropertyName)
+            {
+                case nameof(IPAddressInfo.SystemName):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.SystemName ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        : source.OrderByDescending(ip => ip.SystemName ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+                    break;
+                case nameof(IPAddressInfo.IPAddress):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.IPAddress ?? string.Empty, StringComparer.OrdinalIgnoreCase)
+                        : source.OrderByDescending(ip => ip.IPAddress ?? string.Empty, StringComparer.OrdinalIgnoreCase);
+                    break;
+                case nameof(IPAddressInfo.Environment):
+                    ordered = ascending
+                        ? source.OrderBy(ip => ip.Environment)
+                        : source.OrderByDescending(ip => ip.Environment);
+                    break;
+                default:
+                    return source.ToList();
+            }
+
+            return ordered.ToList();
+        }
+
+        private void UpdateSearchSuggestions(IEnumerable<IPAddressInfo> ipAddresses)
+        {
+            var currentText = txtFilter.Text;
+            var suggestions = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var ipAddress in ipAddresses)
+            {
+                if (!string.IsNullOrWhiteSpace(ipAddress.IPAddress))
+                {
+                    suggestions.Add(ipAddress.IPAddress);
+                }
+
+                if (!string.IsNullOrWhiteSpace(ipAddress.SystemName))
+                {
+                    suggestions.Add(ipAddress.SystemName);
+                }
+            }
+
+            txtFilter.Items.Clear();
+            if (suggestions.Count > 0)
+            {
+                txtFilter.Items.AddRange(suggestions
+                    .OrderBy(value => value)
+                    .Cast<object>()
+                    .ToArray());
+            }
+
+            txtFilter.Text = currentText;
+            txtFilter.SelectionStart = txtFilter.Text.Length;
+        }
+
+        private void UpdateSystemFilterItems()
+        {
+            var currentText = cmbSystemFilter.Text;
+
+            cmbSystemFilter.Items.Clear();
+            cmbSystemFilter.Items.Add("Все системы");
+
+            var systems = _systems
+                .Where(system => !string.IsNullOrWhiteSpace(system.SystemName))
+                .Select(system => system.SystemName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name)
+                .ToList();
+
+            foreach (var systemName in systems)
+            {
+                cmbSystemFilter.Items.Add(systemName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentText))
+            {
+                if (TrySelectSystemFilterItem(currentText))
+                {
+                    return;
+                }
+
+                cmbSystemFilter.Text = currentText;
+                cmbSystemFilter.SelectionStart = cmbSystemFilter.Text.Length;
+            }
+            else
+            {
+                cmbSystemFilter.SelectedIndex = 0;
+            }
+        }
+
+        private bool TrySelectSystemFilterItem(string systemName)
+        {
+            for (int i = 0; i < cmbSystemFilter.Items.Count; i++)
+            {
+                if (cmbSystemFilter.Items[i].ToString().Equals(systemName, StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbSystemFilter.SelectedIndex = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private string GetSelectedSystemFilterText()
+        {
+            var text = cmbSystemFilter.Text?.Trim();
+
+            if (string.IsNullOrEmpty(text) || text.Equals("Все системы", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return text;
         }
 
         private void ApplyFilters()
@@ -168,10 +345,12 @@ namespace IPWhiteListManager.Forms
             }
 
             // Фильтр по системе
-            if (cmbSystemFilter.SelectedIndex > 0)
+            var systemFilterText = GetSelectedSystemFilterText();
+            if (!string.IsNullOrEmpty(systemFilterText))
             {
-                var selectedSystem = cmbSystemFilter.SelectedItem.ToString();
-                filtered = filtered.Where(ip => ip.SystemName == selectedSystem).ToList();
+                filtered = filtered
+                    .Where(ip => ip.SystemName.Equals(systemFilterText, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
             }
 
             // Фильтр по окружению
@@ -348,6 +527,15 @@ namespace IPWhiteListManager.Forms
             }
         }
 
+        private void CmbSystemFilter_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                ApplyFilters();
+                e.Handled = true;
+            }
+        }
+
         private void BtnEditIP_Click(object sender, EventArgs e)
         {
             if (_selectedIP == null)
@@ -380,10 +568,13 @@ namespace IPWhiteListManager.Forms
                 systemToEdit = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
             }
 
-            if (systemToEdit == null && cmbSystemFilter.SelectedIndex > 0)
+            if (systemToEdit == null)
             {
-                var selectedName = cmbSystemFilter.SelectedItem.ToString();
-                systemToEdit = _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                var selectedName = GetSelectedSystemFilterText();
+                if (!string.IsNullOrEmpty(selectedName))
+                {
+                    systemToEdit = _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                }
             }
 
             if (systemToEdit == null)
@@ -532,13 +723,10 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            for (int i = 0; i < cmbSystemFilter.Items.Count; i++)
+            if (!TrySelectSystemFilterItem(systemName))
             {
-                if (cmbSystemFilter.Items[i].ToString().Equals(systemName, StringComparison.OrdinalIgnoreCase))
-                {
-                    cmbSystemFilter.SelectedIndex = i;
-                    return;
-                }
+                cmbSystemFilter.Text = systemName;
+                cmbSystemFilter.SelectionStart = cmbSystemFilter.Text.Length;
             }
         }
 
@@ -590,9 +778,9 @@ namespace IPWhiteListManager.Forms
                 }
             }
 
-            if (cmbSystemFilter.SelectedIndex > 0)
+            var selectedName = GetSelectedSystemFilterText();
+            if (!string.IsNullOrEmpty(selectedName))
             {
-                var selectedName = cmbSystemFilter.SelectedItem.ToString();
                 return _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
             }
 
@@ -640,24 +828,36 @@ namespace IPWhiteListManager.Forms
         private void ExportCurrentDataToCsv(string filePath)
         {
             var builder = new StringBuilder();
-            builder.AppendLine("SystemName;Environment;IPAddress;IsRegisteredInNamen;NamenRequestNumber;RegistrationDate;OwnerName;OwnerEmail;TechnicalSpecialistName;TechnicalSpecialistEmail");
+            builder.AppendLine("IpId;SystemId;SystemName;SystemDescription;IsTestProductionCombined;CuratorName;CuratorEmail;OwnerName;OwnerEmail;TechnicalSpecialistName;TechnicalSpecialistEmail;SystemCreatedDate;Environment;IPAddress;IsRegisteredInNamen;NamenRequestNumber;RegistrationDate");
 
             foreach (var ip in _ipAddresses)
             {
                 var system = _systems.FirstOrDefault(s => s.Id == ip.SystemId);
+                var systemName = system?.SystemName ?? ip.SystemName;
+
+                var systemCreatedDate = system != null
+                    ? system.CreatedDate.ToString("yyyy-MM-dd HH:mm:ss")
+                    : string.Empty;
 
                 builder.AppendLine(string.Join(";", new[]
                 {
-                    CsvValue(ip.SystemName),
+                    CsvValue(ip.Id.ToString()),
+                    CsvValue(ip.SystemId.ToString()),
+                    CsvValue(systemName),
+                    CsvValue(system?.Description),
+                    CsvValue(system != null ? (system.IsTestProductionCombined ? "true" : "false") : string.Empty),
+                    CsvValue(system?.CuratorName),
+                    CsvValue(system?.CuratorEmail),
+                    CsvValue(system?.OwnerName),
+                    CsvValue(system?.OwnerEmail),
+                    CsvValue(system?.TechnicalSpecialistName),
+                    CsvValue(system?.TechnicalSpecialistEmail),
+                    CsvValue(systemCreatedDate),
                     CsvValue(ip.Environment.ToString()),
                     CsvValue(ip.IPAddress),
                     CsvValue(ip.IsRegisteredInNamen ? "true" : "false"),
                     CsvValue(ip.NamenRequestNumber),
-                    CsvValue(ip.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss")),
-                    CsvValue(system?.OwnerName),
-                    CsvValue(system?.OwnerEmail),
-                    CsvValue(system?.TechnicalSpecialistName),
-                    CsvValue(system?.TechnicalSpecialistEmail)
+                    CsvValue(ip.RegistrationDate.ToString("yyyy-MM-dd HH:mm:ss"))
                 }));
             }
 

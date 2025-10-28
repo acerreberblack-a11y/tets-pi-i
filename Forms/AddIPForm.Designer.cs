@@ -173,7 +173,8 @@
             this.dgvIpAddresses.AllowUserToResizeRows = false;
             this.dgvIpAddresses.ColumnHeadersHeightSizeMode = System.Windows.Forms.DataGridViewColumnHeadersHeightSizeMode.AutoSize;
             this.dgvIpAddresses.Columns.AddRange(new System.Windows.Forms.DataGridViewColumn[] {
-            this.colIpAddress});
+            this.colIpAddress,
+            this.colEnvironment});
             this.dgvIpAddresses.Location = new System.Drawing.Point(20, 205);
             this.dgvIpAddresses.MultiSelect = false;
             this.dgvIpAddresses.Name = "dgvIpAddresses";
@@ -190,6 +191,13 @@
             this.colIpAddress.HeaderText = "IP-адрес";
             this.colIpAddress.Name = "colIpAddress";
             this.colIpAddress.ReadOnly = true;
+            //
+            // colEnvironment
+            //
+            this.colEnvironment.AutoSizeMode = System.Windows.Forms.DataGridViewAutoSizeColumnMode.AllCells;
+            this.colEnvironment.HeaderText = "Контур";
+            this.colEnvironment.Name = "colEnvironment";
+            this.colEnvironment.ReadOnly = true;
             //
             // btnRemoveIp
             //
@@ -334,6 +342,7 @@
         private System.Windows.Forms.Label lblIpList;
         private System.Windows.Forms.DataGridView dgvIpAddresses;
         private System.Windows.Forms.DataGridViewTextBoxColumn colIpAddress;
+        private System.Windows.Forms.DataGridViewTextBoxColumn colEnvironment;
         private System.Windows.Forms.Button btnRemoveIp;
         private System.Windows.Forms.GroupBox grpSystemDetails;
         private System.Windows.Forms.TextBox txtSystemDetails;
