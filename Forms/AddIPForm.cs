@@ -23,6 +23,18 @@ namespace IPWhiteListManager.Forms
         private bool _currentIpExistsInTest;
         private IPAddressInfo _existingIpMatch;
 
+        private sealed class PendingIpEntry
+        {
+            public PendingIpEntry(string address, EnvironmentType environment)
+            {
+                Address = address;
+                Environment = environment;
+            }
+
+            public string Address { get; }
+            public EnvironmentType Environment { get; }
+        }
+
         public AddIPForm(DatabaseManager dbManager)
             : this(dbManager, null, null)
         {
@@ -263,7 +275,6 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            var environment = GetEnvironmentType();
             var systemId = GetOrCreateSystem(cmbSystem.Text.Trim());
             UpdateSystemDetails();
             if (systemId == -1)
@@ -277,6 +288,7 @@ namespace IPWhiteListManager.Forms
             {
                 if (_isEditMode)
                 {
+                    var environment = GetEnvironmentType();
                     var ipInfo = new IPAddressInfo
                     {
                         Id = _ipToEdit?.Id ?? 0,
@@ -291,7 +303,7 @@ namespace IPWhiteListManager.Forms
 
                     if (ShouldRegisterInNamen())
                     {
-                        await RegisterInNamenAsync(new List<IPAddressInfo> { ipInfo }, environment.ToString());
+                        await RegisterInNamenAsync(new List<IPAddressInfo> { ipInfo });
                     }
                     else
                     {
@@ -304,6 +316,7 @@ namespace IPWhiteListManager.Forms
                 else
                 {
                     var pendingIps = GetIpEntries();
+                    var environment = GetEnvironmentType();
                     var createdIps = new List<IPAddressInfo>();
                     IPAddressInfo updatedExisting = null;
 
@@ -324,13 +337,13 @@ namespace IPWhiteListManager.Forms
                         _dbManager.UpdateIPAddress(updatedExisting);
                     }
 
-                    foreach (var ipAddress in pendingIps)
+                    foreach (var entry in pendingIps)
                     {
                         var ipInfo = new IPAddressInfo
                         {
                             SystemId = systemId,
-                            IPAddress = ipAddress,
-                            Environment = environment,
+                            IPAddress = entry.Address,
+                            Environment = entry.Environment,
                             IsRegisteredInNamen = CalculateRegistrationState(),
                             NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim()) ? null : txtRequestNumber.Text.Trim()
                         };
@@ -355,7 +368,7 @@ namespace IPWhiteListManager.Forms
 
                         if (ipsToRegister.Count > 0)
                         {
-                            await RegisterInNamenAsync(ipsToRegister, environment.ToString());
+                            await RegisterInNamenAsync(ipsToRegister);
                             return;
                         }
                     }
@@ -451,7 +464,10 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            dgvIpAddresses.Rows.Add(ipAddress, GetEnvironmentDisplayName(GetEnvironmentType()));
+            var environment = GetEnvironmentType();
+            var displayName = GetEnvironmentDisplayName(environment);
+            var rowIndex = dgvIpAddresses.Rows.Add(ipAddress, displayName);
+            dgvIpAddresses.Rows[rowIndex].Tag = environment;
             txtIPAddress.Clear();
             txtIPAddress.Focus();
             UpdateIpListControls();
@@ -498,14 +514,33 @@ namespace IPWhiteListManager.Forms
             return dgvIpAddresses.Rows.Count > previousCount;
         }
 
-        private List<string> GetIpEntries()
+        private List<PendingIpEntry> GetIpEntries()
         {
-            return dgvIpAddresses.Rows
-                .Cast<DataGridViewRow>()
-                .Select(r => r.Cells[colIpAddress.Index].Value?.ToString())
-                .Where(v => !string.IsNullOrWhiteSpace(v))
-                .Distinct(StringComparer.OrdinalIgnoreCase)
-                .ToList();
+            var entries = new List<PendingIpEntry>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (DataGridViewRow row in dgvIpAddresses.Rows)
+            {
+                if (row.IsNewRow)
+                {
+                    continue;
+                }
+
+                var address = row.Cells[colIpAddress.Index].Value?.ToString();
+
+                if (string.IsNullOrWhiteSpace(address) || !seen.Add(address))
+                {
+                    continue;
+                }
+
+                var environment = row.Tag is EnvironmentType storedEnvironment
+                    ? storedEnvironment
+                    : GetEnvironmentType();
+
+                entries.Add(new PendingIpEntry(address, environment));
+            }
+
+            return entries;
         }
 
         private bool IsIpAlreadyListed(string ipAddress)
@@ -533,13 +568,20 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            var label = GetEnvironmentDisplayName(GetEnvironmentType());
-
             foreach (DataGridViewRow row in dgvIpAddresses.Rows)
             {
                 if (!row.IsNewRow)
                 {
-                    row.Cells[colEnvironment.Index].Value = label;
+                    if (row.Tag is EnvironmentType storedEnvironment)
+                    {
+                        row.Cells[colEnvironment.Index].Value = GetEnvironmentDisplayName(storedEnvironment);
+                    }
+                    else
+                    {
+                        var fallback = GetEnvironmentType();
+                        row.Tag = fallback;
+                        row.Cells[colEnvironment.Index].Value = GetEnvironmentDisplayName(fallback);
+                    }
                 }
             }
         }
@@ -677,7 +719,7 @@ namespace IPWhiteListManager.Forms
                 return EnvironmentType.Test;
         }
 
-        private async System.Threading.Tasks.Task RegisterInNamenAsync(List<IPAddressInfo> ipAddresses, string environment)
+        private async System.Threading.Tasks.Task RegisterInNamenAsync(List<IPAddressInfo> ipAddresses)
         {
             try
             {
@@ -687,7 +729,7 @@ namespace IPWhiteListManager.Forms
 
                 foreach (var ipInfo in ipAddresses)
                 {
-                    var result = await namenService.RegisterIPInNamen(ipInfo.IPAddress, environment);
+                    var result = await namenService.RegisterIPInNamen(ipInfo.IPAddress, ipInfo.Environment.ToString());
 
                     if (result.Success)
                     {
