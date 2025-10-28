@@ -81,7 +81,9 @@ namespace IPWhiteListManager.Forms
             // 
             // cmbSystemFilter
             // 
-            this.cmbSystemFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDownList;
+            this.cmbSystemFilter.AutoCompleteMode = System.Windows.Forms.AutoCompleteMode.SuggestAppend;
+            this.cmbSystemFilter.AutoCompleteSource = System.Windows.Forms.AutoCompleteSource.ListItems;
+            this.cmbSystemFilter.DropDownStyle = System.Windows.Forms.ComboBoxStyle.DropDown;
             this.cmbSystemFilter.FormattingEnabled = true;
             this.cmbSystemFilter.Location = new System.Drawing.Point(225, 12);
             this.cmbSystemFilter.Name = "cmbSystemFilter";

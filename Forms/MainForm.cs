@@ -46,7 +46,9 @@ namespace IPWhiteListManager.Forms
             this.txtFilter.KeyPress += TxtFilter_KeyPress;
             this.txtFilter.TextChanged += FilterControlChanged;
             this.txtFilter.SelectedIndexChanged += FilterControlChanged;
+            this.cmbSystemFilter.TextChanged += FilterControlChanged;
             this.cmbSystemFilter.SelectedIndexChanged += FilterControlChanged;
+            this.cmbSystemFilter.KeyPress += CmbSystemFilter_KeyPress;
             this.cmbEnvironmentFilter.SelectedIndexChanged += FilterControlChanged;
 
             UpdateContactInfo(null);
@@ -71,13 +73,7 @@ namespace IPWhiteListManager.Forms
                 var ipAddresses = _dbManager.GetAllIPAddresses();
 
                 // Заполнение фильтров
-                cmbSystemFilter.Items.Clear();
-                cmbSystemFilter.Items.Add("Все системы");
-                foreach (var system in _systems)
-                {
-                    cmbSystemFilter.Items.Add(system.SystemName);
-                }
-                cmbSystemFilter.SelectedIndex = 0;
+                UpdateSystemFilterItems();
 
                 cmbEnvironmentFilter.Items.Clear();
                 cmbEnvironmentFilter.Items.Add("Все контуры");
@@ -176,6 +172,67 @@ namespace IPWhiteListManager.Forms
             txtFilter.SelectionStart = txtFilter.Text.Length;
         }
 
+        private void UpdateSystemFilterItems()
+        {
+            var currentText = cmbSystemFilter.Text;
+
+            cmbSystemFilter.Items.Clear();
+            cmbSystemFilter.Items.Add("Все системы");
+
+            var systems = _systems
+                .Where(system => !string.IsNullOrWhiteSpace(system.SystemName))
+                .Select(system => system.SystemName)
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(name => name)
+                .ToList();
+
+            foreach (var systemName in systems)
+            {
+                cmbSystemFilter.Items.Add(systemName);
+            }
+
+            if (!string.IsNullOrWhiteSpace(currentText))
+            {
+                if (TrySelectSystemFilterItem(currentText))
+                {
+                    return;
+                }
+
+                cmbSystemFilter.Text = currentText;
+                cmbSystemFilter.SelectionStart = cmbSystemFilter.Text.Length;
+            }
+            else
+            {
+                cmbSystemFilter.SelectedIndex = 0;
+            }
+        }
+
+        private bool TrySelectSystemFilterItem(string systemName)
+        {
+            for (int i = 0; i < cmbSystemFilter.Items.Count; i++)
+            {
+                if (cmbSystemFilter.Items[i].ToString().Equals(systemName, StringComparison.OrdinalIgnoreCase))
+                {
+                    cmbSystemFilter.SelectedIndex = i;
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        private string GetSelectedSystemFilterText()
+        {
+            var text = cmbSystemFilter.Text?.Trim();
+
+            if (string.IsNullOrEmpty(text) || text.Equals("Все системы", StringComparison.OrdinalIgnoreCase))
+            {
+                return null;
+            }
+
+            return text;
+        }
+
         private void BtnSearch_Click(object sender, EventArgs e)
         {
             ApplyFilters();
@@ -201,10 +258,12 @@ namespace IPWhiteListManager.Forms
             }
 
             // Фильтр по системе
-            if (cmbSystemFilter.SelectedIndex > 0)
+            var systemFilterText = GetSelectedSystemFilterText();
+            if (!string.IsNullOrEmpty(systemFilterText))
             {
-                var selectedSystem = cmbSystemFilter.SelectedItem.ToString();
-                filtered = filtered.Where(ip => ip.SystemName == selectedSystem).ToList();
+                filtered = filtered
+                    .Where(ip => ip.SystemName.Equals(systemFilterText, StringComparison.OrdinalIgnoreCase))
+                    .ToList();
             }
 
             // Фильтр по окружению
@@ -381,6 +440,15 @@ namespace IPWhiteListManager.Forms
             }
         }
 
+        private void CmbSystemFilter_KeyPress(object sender, KeyPressEventArgs e)
+        {
+            if (e.KeyChar == (char)Keys.Enter)
+            {
+                ApplyFilters();
+                e.Handled = true;
+            }
+        }
+
         private void BtnEditIP_Click(object sender, EventArgs e)
         {
             if (_selectedIP == null)
@@ -413,10 +481,13 @@ namespace IPWhiteListManager.Forms
                 systemToEdit = _systems.FirstOrDefault(s => s.Id == _selectedIP.SystemId);
             }
 
-            if (systemToEdit == null && cmbSystemFilter.SelectedIndex > 0)
+            if (systemToEdit == null)
             {
-                var selectedName = cmbSystemFilter.SelectedItem.ToString();
-                systemToEdit = _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                var selectedName = GetSelectedSystemFilterText();
+                if (!string.IsNullOrEmpty(selectedName))
+                {
+                    systemToEdit = _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
+                }
             }
 
             if (systemToEdit == null)
@@ -565,13 +636,10 @@ namespace IPWhiteListManager.Forms
                 return;
             }
 
-            for (int i = 0; i < cmbSystemFilter.Items.Count; i++)
+            if (!TrySelectSystemFilterItem(systemName))
             {
-                if (cmbSystemFilter.Items[i].ToString().Equals(systemName, StringComparison.OrdinalIgnoreCase))
-                {
-                    cmbSystemFilter.SelectedIndex = i;
-                    return;
-                }
+                cmbSystemFilter.Text = systemName;
+                cmbSystemFilter.SelectionStart = cmbSystemFilter.Text.Length;
             }
         }
 
@@ -623,9 +691,9 @@ namespace IPWhiteListManager.Forms
                 }
             }
 
-            if (cmbSystemFilter.SelectedIndex > 0)
+            var selectedName = GetSelectedSystemFilterText();
+            if (!string.IsNullOrEmpty(selectedName))
             {
-                var selectedName = cmbSystemFilter.SelectedItem.ToString();
                 return _systems.FirstOrDefault(s => s.SystemName.Equals(selectedName, StringComparison.OrdinalIgnoreCase));
             }
 
