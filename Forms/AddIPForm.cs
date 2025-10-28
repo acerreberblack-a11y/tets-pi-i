@@ -159,33 +159,10 @@ namespace IPWhiteListManager.Forms
                     cmbSystem.Text = firstIP.SystemName;
                     cmbSystem.Enabled = false;
 
-                    switch (firstIP.Environment)
-                    {
-                        case EnvironmentType.Production:
-                            chkProduction.Checked = true;
-                            chkProduction.Enabled = false;
-                            chkTest.Checked = false;
-                            chkTest.Enabled = true;
-                            SetCombinedState(false, false);
-                            chkCombined.Enabled = false;
-                            break;
-                        case EnvironmentType.Test:
-                            chkProduction.Checked = false;
-                            chkProduction.Enabled = true;
-                            chkTest.Checked = true;
-                            chkTest.Enabled = false;
-                            SetCombinedState(false, false);
-                            chkCombined.Enabled = false;
-                            break;
-                        case EnvironmentType.Both:
-                            chkProduction.Checked = true;
-                            chkProduction.Enabled = false;
-                            chkTest.Checked = true;
-                            chkTest.Enabled = false;
-                            SetCombinedState(true, false);
-                            chkCombined.Enabled = false;
-                            break;
-                    }
+                    chkProduction.Checked = true;
+                    chkTest.Checked = true;
+                    SetCombinedState(true, true);
+                    chkCombined.Enabled = true;
 
                     UpdateSystemDetails();
                 }
@@ -193,7 +170,7 @@ namespace IPWhiteListManager.Forms
                 if (showExistingMessage)
                 {
                     MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment})." + Environment.NewLine
-                                   + "Система и текущее окружение заблокированы для редактирования.",
+                                   + "Контур автоматически объединен. При необходимости можно изменить его позже.",
                                    "IP-адрес найден",
                                    MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
