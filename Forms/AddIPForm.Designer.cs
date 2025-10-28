@@ -33,6 +33,7 @@
             this.lblIpList = new System.Windows.Forms.Label();
             this.dgvIpAddresses = new System.Windows.Forms.DataGridView();
             this.colIpAddress = new System.Windows.Forms.DataGridViewTextBoxColumn();
+            this.colEnvironment = new System.Windows.Forms.DataGridViewTextBoxColumn();
             this.btnRemoveIp = new System.Windows.Forms.Button();
             this.grpSystemDetails = new System.Windows.Forms.GroupBox();
             this.txtSystemDetails = new System.Windows.Forms.TextBox();
