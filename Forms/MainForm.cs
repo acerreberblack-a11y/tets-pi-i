@@ -32,7 +32,6 @@ namespace IPWhiteListManager.Forms
             _ipAddresses = new BindingList<IPAddressInfo>();
 
             // Подписка на события
-            this.btnSearch.Click += BtnSearch_Click;
             this.btnAddIP.Click += BtnAddIP_Click;
             this.btnAddSystem.Click += BtnAddSystem_Click;
             this.btnRegisterNamen.Click += BtnRegisterNamen_Click;
@@ -231,11 +230,6 @@ namespace IPWhiteListManager.Forms
             }
 
             return text;
-        }
-
-        private void BtnSearch_Click(object sender, EventArgs e)
-        {
-            ApplyFilters();
         }
 
         private void ApplyFilters()
