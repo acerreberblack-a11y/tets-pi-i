@@ -19,6 +19,9 @@ namespace IPWhiteListManager.Forms
         private SystemInfo _selectedSystem;
 
         private bool _isUpdatingCombinedState;
+        private bool _currentIpExistsInProduction;
+        private bool _currentIpExistsInTest;
+        private IPAddressInfo _existingIpMatch;
 
         public AddIPForm(DatabaseManager dbManager)
             : this(dbManager, null, null)
@@ -132,6 +135,10 @@ namespace IPWhiteListManager.Forms
 
         private bool CheckExistingIP(string ipAddress, bool adjustFormState, bool showExistingMessage)
         {
+            _existingIpMatch = null;
+            _currentIpExistsInProduction = false;
+            _currentIpExistsInTest = false;
+
             if (string.IsNullOrEmpty(ipAddress))
             {
                 if (adjustFormState)
@@ -140,6 +147,8 @@ namespace IPWhiteListManager.Forms
                     chkProduction.Enabled = true;
                     chkTest.Enabled = true;
                     chkCombined.Enabled = true;
+                    SetCombinedState(false, true);
+                    UpdateSystemDetails();
                 }
 
                 return true;
@@ -153,26 +162,49 @@ namespace IPWhiteListManager.Forms
             if (existingIPs.Any())
             {
                 var firstIP = existingIPs.First();
+                _existingIpMatch = firstIP;
+
+                _currentIpExistsInProduction = existingIPs.Any(ip =>
+                    ip.Environment == EnvironmentType.Production || ip.Environment == EnvironmentType.Both);
+                _currentIpExistsInTest = existingIPs.Any(ip =>
+                    ip.Environment == EnvironmentType.Test || ip.Environment == EnvironmentType.Both);
+
+                var isCombined = _currentIpExistsInProduction && _currentIpExistsInTest;
 
                 if (adjustFormState)
                 {
                     cmbSystem.Text = firstIP.SystemName;
                     cmbSystem.Enabled = false;
 
-                    chkProduction.Checked = true;
-                    chkTest.Checked = true;
-                    SetCombinedState(true, true);
-                    chkCombined.Enabled = true;
+                    _isUpdatingCombinedState = true;
+                    try
+                    {
+                        chkProduction.Checked = _currentIpExistsInProduction;
+                        chkTest.Checked = _currentIpExistsInTest;
+                    }
+                    finally
+                    {
+                        _isUpdatingCombinedState = false;
+                    }
+
+                    if (isCombined)
+                    {
+                        SetCombinedState(true, true);
+                        chkCombined.Enabled = true;
+                    }
+                    else
+                    {
+                        SetCombinedState(false, true);
+                        chkCombined.Enabled = false;
+                    }
 
                     UpdateSystemDetails();
                 }
 
                 if (showExistingMessage)
                 {
-                    MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment})." + Environment.NewLine
-                                   + "Контур автоматически объединен. При необходимости можно изменить его позже.",
-                                   "IP-адрес найден",
-                                   MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    MessageBox.Show($"IP-адрес {ipAddress} уже существует в системе {firstIP.SystemName} ({firstIP.Environment})",
+                        "IP-адрес найден", MessageBoxButtons.OK, MessageBoxIcon.Information);
                 }
 
                 return false;
@@ -184,7 +216,7 @@ namespace IPWhiteListManager.Forms
                 chkProduction.Enabled = true;
                 chkTest.Enabled = true;
                 chkCombined.Enabled = true;
-                SetCombinedState(false, false);
+                SetCombinedState(false, true);
                 UpdateSystemDetails();
             }
 
@@ -215,7 +247,7 @@ namespace IPWhiteListManager.Forms
                     return;
                 }
             }
-            else if (GetIpEntries().Count == 0)
+            else if (GetIpEntries().Count == 0 && _existingIpMatch == null)
             {
                 MessageBox.Show("Добавьте хотя бы один IP-адрес в таблицу", "Ошибка",
                     MessageBoxButtons.OK, MessageBoxIcon.Error);
@@ -271,6 +303,24 @@ namespace IPWhiteListManager.Forms
                 {
                     var pendingIps = GetIpEntries();
                     var createdIps = new List<IPAddressInfo>();
+                    IPAddressInfo updatedExisting = null;
+
+                    if (_existingIpMatch != null)
+                    {
+                        updatedExisting = new IPAddressInfo
+                        {
+                            Id = _existingIpMatch.Id,
+                            SystemId = systemId,
+                            IPAddress = _existingIpMatch.IPAddress,
+                            Environment = environment,
+                            IsRegisteredInNamen = _existingIpMatch.IsRegisteredInNamen,
+                            NamenRequestNumber = string.IsNullOrEmpty(txtRequestNumber.Text.Trim())
+                                ? _existingIpMatch.NamenRequestNumber
+                                : txtRequestNumber.Text.Trim()
+                        };
+
+                        _dbManager.UpdateIPAddress(updatedExisting);
+                    }
 
                     foreach (var ipAddress in pendingIps)
                     {
@@ -288,21 +338,47 @@ namespace IPWhiteListManager.Forms
                         createdIps.Add(ipInfo);
                     }
 
-                    if (chkRegisterNamen.Checked && string.IsNullOrEmpty(txtRequestNumber.Text.Trim()))
+                    var registerRequested = chkRegisterNamen.Checked && string.IsNullOrEmpty(txtRequestNumber.Text.Trim());
+
+                    if (registerRequested)
                     {
-                        await RegisterInNamenAsync(createdIps, environment.ToString());
+                        var ipsToRegister = new List<IPAddressInfo>();
+
+                        if (updatedExisting != null && !_existingIpMatch.IsRegisteredInNamen)
+                        {
+                            ipsToRegister.Add(updatedExisting);
+                        }
+
+                        ipsToRegister.AddRange(createdIps);
+
+                        if (ipsToRegister.Count > 0)
+                        {
+                            await RegisterInNamenAsync(ipsToRegister, environment.ToString());
+                            return;
+                        }
+                    }
+
+                    string successMessage;
+
+                    if (updatedExisting != null && createdIps.Count > 0)
+                    {
+                        successMessage = "IP-адрес обновлен, новые IP-адреса добавлены";
+                    }
+                    else if (updatedExisting != null)
+                    {
+                        successMessage = "IP-адрес успешно обновлен";
                     }
                     else
                     {
-                        var successMessage = createdIps.Count == 1
+                        successMessage = createdIps.Count == 1
                             ? "IP-адрес успешно добавлен"
                             : "IP-адреса успешно добавлены";
-
-                        MessageBox.Show(successMessage, "Успех",
-                            MessageBoxButtons.OK, MessageBoxIcon.Information);
-                        DialogResult = DialogResult.OK;
-                        Close();
                     }
+
+                    MessageBox.Show(successMessage, "Успех",
+                        MessageBoxButtons.OK, MessageBoxIcon.Information);
+                    DialogResult = DialogResult.OK;
+                    Close();
                 }
             }
             catch (Exception ex)
@@ -404,7 +480,7 @@ namespace IPWhiteListManager.Forms
 
         private bool EnsurePendingIpCaptured()
         {
-            if (_isEditMode)
+            if (_isEditMode || _existingIpMatch != null)
             {
                 return true;
             }
@@ -489,6 +565,15 @@ namespace IPWhiteListManager.Forms
             {
                 _isUpdatingCombinedState = false;
             }
+
+            if (!chkCombined.Checked && _existingIpMatch != null)
+            {
+                if ((_currentIpExistsInProduction && !_currentIpExistsInTest) ||
+                    (_currentIpExistsInTest && !_currentIpExistsInProduction))
+                {
+                    chkCombined.Enabled = false;
+                }
+            }
         }
 
         private void EnvironmentCheckBoxChanged(object sender, EventArgs e)
@@ -496,6 +581,21 @@ namespace IPWhiteListManager.Forms
             if (_isUpdatingCombinedState)
             {
                 return;
+            }
+
+            if (_existingIpMatch != null)
+            {
+                if (_currentIpExistsInProduction && !_currentIpExistsInTest && chkTest.Checked)
+                {
+                    PromoteDuplicateToCombined();
+                    return;
+                }
+
+                if (_currentIpExistsInTest && !_currentIpExistsInProduction && chkProduction.Checked)
+                {
+                    PromoteDuplicateToCombined();
+                    return;
+                }
             }
 
             var shouldCombine = chkProduction.Checked && chkTest.Checked;
@@ -522,6 +622,23 @@ namespace IPWhiteListManager.Forms
             {
                 _isUpdatingCombinedState = false;
             }
+        }
+
+        private void PromoteDuplicateToCombined()
+        {
+            _isUpdatingCombinedState = true;
+            try
+            {
+                chkProduction.Checked = true;
+                chkTest.Checked = true;
+            }
+            finally
+            {
+                _isUpdatingCombinedState = false;
+            }
+
+            SetCombinedState(true, true);
+            chkCombined.Enabled = true;
         }
 
         private EnvironmentType GetEnvironmentType()
